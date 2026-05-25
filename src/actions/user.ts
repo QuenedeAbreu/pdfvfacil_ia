@@ -75,7 +75,7 @@ export async function getUsuarios() {
     orderBy: { id: 'asc' }
   })
   
-  return users.map(u => ({
+  return users.map((u: any) => ({
     id: u.id,
     nome: u.nome,
     email: u.email,
