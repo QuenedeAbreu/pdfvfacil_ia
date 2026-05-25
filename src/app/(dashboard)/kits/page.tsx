@@ -7,7 +7,7 @@ export default async function KitsPage() {
   const produtos = await getProdutos()
 
   // Filtrar apenas produtos ativos para compor o kit
-  const produtosAtivos = produtos.filter(p => p.ativo)
+  const produtosAtivos = produtos.filter((p: any) => p.ativo)
 
   return (
     <div className="space-y-6">
