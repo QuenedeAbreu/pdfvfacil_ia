@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  nome     String
+  email    String  @unique
+  senha    String
+  nivel    String  // "administrador" ou "vendedor"
+  ativo    Boolean @default(true)
+}
+
+model Product {
+  id                 Int      @id @default(autoincrement())
+  nome               String
+  categoria          String?
+  codNotaFiscal      String?
+  tipoQuantidade     String?
+  quantidadeEstoque  Float    @default(0)
+  precoCompra        Float    @default(0)
+  percentualLucro    Float    @default(0)
+  precoVenda         Float    @default(0)
+  ativo              Boolean  @default(true)
+
+  itensKit           KitItem[]
+  itensVenda         SaleItem[]
+  insumosUsados      ManufacturedProductComposition[] @relation("Insumo")
+  produtosFabricados ManufacturedProductComposition[] @relation("ProdutoFabricado")
+}
+
+model Kit {
+  id         Int       @id @default(autoincrement())
+  nome       String
+  precoVenda Float
+  itens      KitItem[]
+}
+
+model KitItem {
+  id         Int     @id @default(autoincrement())
+  kitId      Int
+  produtoId  Int
+  quantidade Float
+
+  kit        Kit     @relation(fields: [kitId], references: [id])
+  produto    Product @relation(fields: [produtoId], references: [id])
+}
+
+model ManufacturedProductComposition {
+  id                   Int @id @default(autoincrement())
+  produtoFabricadoId   Int
+  insumoId             Int
+  quantidade           Float
+
+  produtoFabricado     Product @relation("ProdutoFabricado", fields: [produtoFabricadoId], references: [id])
+  insumo               Product @relation("Insumo", fields: [insumoId], references: [id])
+}
+
+model Sale {
+  id            Int        @id @default(autoincrement())
+  dataVenda     DateTime   @default(now())
+  cliente       String?
+  telefone      String?
+  descontoFinal Float      @default(0)
+  total         Float
+  isOrcamento   Boolean    @default(false)
+  itens         SaleItem[]
+}
+
+model SaleItem {
+  id                       Int     @id @default(autoincrement())
+  vendaId                  Int
+  itemId                   Int
+  isKit                    Boolean @default(false)
+  quantidade               Float
+  precoOriginal            Float
+  descontoItemPorcentagem  Float   @default(0)
+
+  venda                    Sale     @relation(fields: [vendaId], references: [id])
+  produto                  Product? @relation(fields: [itemId], references: [id]) // Relacionamento condicional
+}
