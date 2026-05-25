@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -11,30 +8,32 @@ datasource db {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  nome     String
-  email    String  @unique
-  senha    String
-  nivel    String  // "administrador" ou "vendedor"
-  ativo    Boolean @default(true)
+  id    Int     @id @default(autoincrement())
+  nome  String
+  email String  @unique
+  senha String
+  nivel String
+  ativo Boolean @default(true)
 }
 
 model Product {
-  id                 Int      @id @default(autoincrement())
+  id                 Int                              @id @default(autoincrement())
   nome               String
   categoria          String?
   codNotaFiscal      String?
   tipoQuantidade     String?
-  quantidadeEstoque  Float    @default(0)
-  precoCompra        Float    @default(0)
-  percentualLucro    Float    @default(0)
-  precoVenda         Float    @default(0)
-  ativo              Boolean  @default(true)
-
+  quantidadeEstoque  Float                            @default(0)
+  precoCompra        Float                            @default(0)
+  percentualLucro    Float                            @default(0)
+  precoVenda         Float                            @default(0)
+  ativo              Boolean                          @default(true)
+  custoHoraProducao  Float?                           @default(0)
+  outrosCustos       Float?                           @default(0)
+  tempoProducao      Float?                           @default(0)
   itensKit           KitItem[]
-  itensVenda         SaleItem[]
   insumosUsados      ManufacturedProductComposition[] @relation("Insumo")
   produtosFabricados ManufacturedProductComposition[] @relation("ProdutoFabricado")
+  itensVenda         SaleItem[]
 }
 
 model Kit {
@@ -49,19 +48,23 @@ model KitItem {
   kitId      Int
   produtoId  Int
   quantidade Float
-
   kit        Kit     @relation(fields: [kitId], references: [id])
   produto    Product @relation(fields: [produtoId], references: [id])
+
+  @@index([kitId], map: "KitItem_kitId_fkey")
+  @@index([produtoId], map: "KitItem_produtoId_fkey")
 }
 
 model ManufacturedProductComposition {
-  id                   Int @id @default(autoincrement())
-  produtoFabricadoId   Int
-  insumoId             Int
-  quantidade           Float
+  id                 Int     @id @default(autoincrement())
+  produtoFabricadoId Int
+  insumoId           Int
+  quantidade         Float
+  insumo             Product @relation("Insumo", fields: [insumoId], references: [id])
+  produtoFabricado   Product @relation("ProdutoFabricado", fields: [produtoFabricadoId], references: [id])
 
-  produtoFabricado     Product @relation("ProdutoFabricado", fields: [produtoFabricadoId], references: [id])
-  insumo               Product @relation("Insumo", fields: [insumoId], references: [id])
+  @@index([insumoId], map: "ManufacturedProductComposition_insumoId_fkey")
+  @@index([produtoFabricadoId], map: "ManufacturedProductComposition_produtoFabricadoId_fkey")
 }
 
 model Sale {
@@ -76,14 +79,16 @@ model Sale {
 }
 
 model SaleItem {
-  id                       Int     @id @default(autoincrement())
-  vendaId                  Int
-  itemId                   Int
-  isKit                    Boolean @default(false)
-  quantidade               Float
-  precoOriginal            Float
-  descontoItemPorcentagem  Float   @default(0)
+  id                      Int     @id @default(autoincrement())
+  vendaId                 Int
+  itemId                  Int
+  isKit                   Boolean @default(false)
+  quantidade              Float
+  precoOriginal           Float
+  descontoItemPorcentagem Float   @default(0)
+  produto                 Product @relation(fields: [itemId], references: [id])
+  venda                   Sale    @relation(fields: [vendaId], references: [id])
 
-  venda                    Sale     @relation(fields: [vendaId], references: [id])
-  produto                  Product? @relation(fields: [itemId], references: [id]) // Relacionamento condicional
+  @@index([itemId], map: "SaleItem_itemId_fkey")
+  @@index([vendaId], map: "SaleItem_vendaId_fkey")
 }

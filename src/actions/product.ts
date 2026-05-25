@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache"
 
 export async function getProdutos() {
   return prisma.product.findMany({
+    include: {
+      produtosFabricados: {
+        include: {
+          insumo: true
+        }
+      }
+    },
     orderBy: { id: 'desc' }
   })
 }
@@ -58,7 +65,7 @@ export async function salvarProduto(formData: FormData) {
 }
 
 export async function salvarProdutoFabricado(data: any) {
-  const { idEdicao, nome, categoria, qtdEstoque, custoTotalFabricacao, lucro, precoVendaFinal, composicaoInsumos } = data
+  const { idEdicao, nome, categoria, qtdEstoque, custoTotalFabricacao, lucro, precoVendaFinal, composicaoInsumos, tempoProducao, custoHoraProducao, outrosCustos } = data
 
   if (!idEdicao) {
     // Validação de estoque dos insumos
@@ -82,7 +89,10 @@ export async function salvarProdutoFabricado(data: any) {
         quantidadeEstoque: qtdEstoque,
         precoCompra: custoTotalFabricacao,
         percentualLucro: lucro,
-        precoVenda: precoVendaFinal
+        precoVenda: precoVendaFinal,
+        tempoProducao,
+        custoHoraProducao,
+        outrosCustos
       }
     })
     produtoId = updated.id
@@ -99,6 +109,9 @@ export async function salvarProdutoFabricado(data: any) {
         precoCompra: custoTotalFabricacao,
         percentualLucro: lucro,
         precoVenda: precoVendaFinal,
+        tempoProducao,
+        custoHoraProducao,
+        outrosCustos,
         ativo: true
       }
     })

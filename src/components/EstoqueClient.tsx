@@ -15,7 +15,16 @@ type Produto = {
   precoCompra: number;
   percentualLucro: number;
   precoVenda: number;
+  tempoProducao?: number | null;
+  custoHoraProducao?: number | null;
+  outrosCustos?: number | null;
   ativo: boolean;
+  produtosFabricados?: {
+    id: number;
+    insumoId: number;
+    quantidade: number;
+    insumo: any;
+  }[];
 }
 
 export default function EstoqueClient({ produtos, insumos }: { produtos: Produto[], insumos: Produto[] }) {
@@ -129,7 +138,10 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
       custoTotalFabricacao: custoTotal,
       lucro: parseFloat(fLucro),
       precoVendaFinal: precoSugeridoFab,
-      composicaoInsumos: composicao
+      composicaoInsumos: composicao,
+      tempoProducao: parseFloat(fTempo) || 0,
+      custoHoraProducao: parseFloat(fCustoHora) || 0,
+      outrosCustos: parseFloat(fOutros) || 0
     }
     const res = await salvarProdutoFabricado(data)
     if (res.error) showAlert(res.error)
@@ -323,7 +335,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
               <tr>
                 <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Produto</th>
-                <th className="px-4 py-3">Categoria</th>
+                <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Estoque</th>
                 <th className="px-4 py-3 text-right">Venda (R$)</th>
@@ -334,9 +346,16 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
               {produtosFiltrados.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs">{p.id}</td>
-                  <td className="px-4 py-3 font-medium">{p.nome}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {p.nome}
+                    <div className="text-[10px] text-slate-400 mt-0.5">{p.categoria || 'Sem categoria'}</div>
+                  </td>
                   <td className="px-4 py-3 text-xs">
-                    <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400">{p.categoria || 'N/A'}</span>
+                    {p.produtosFabricados && p.produtosFabricados.length > 0 ? (
+                      <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-1 rounded font-semibold border border-amber-200 dark:border-amber-800/50">Personalizado</span>
+                    ) : (
+                      <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded font-semibold border border-emerald-200 dark:border-emerald-800/50">Revenda</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => toggleProdutoStatus(p.id, p.ativo)} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${p.ativo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
@@ -352,17 +371,38 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => {
-                      // Edição simples
-                      setActiveTab('simples')
-                      setPIdEdicao(p.id.toString())
-                      setPNome(p.nome)
-                      setPCategoria(p.categoria || "Cosméticos")
-                      setPNf(p.codNotaFiscal || "")
-                      setPMedida(p.tipoQuantidade || "un")
-                      setPQtd(p.quantidadeEstoque.toString())
-                      setPCusto(p.precoCompra.toString())
-                      setPLucro(p.percentualLucro.toString())
-                      setPVenda(p.precoVenda.toString())
+                      if (p.produtosFabricados && p.produtosFabricados.length > 0) {
+                        // Edição Personalizado
+                        setActiveTab('personalizado')
+                        setFIdEdicao(p.id.toString())
+                        setFNome(p.nome)
+                        setFCategoria(p.categoria || "Papelaria")
+                        setFQtdEstoque(p.quantidadeEstoque.toString())
+                        setFLucro(p.percentualLucro.toString())
+                        
+                        const comp = p.produtosFabricados.map(pf => ({
+                          id: pf.insumoId.toString(),
+                          nome: pf.insumo.nome,
+                          quantidade: pf.quantidade.toString(),
+                          preco: pf.insumo.precoVenda || 0
+                        }))
+                        setComposicao(comp)
+                        setFTempo(p.tempoProducao ? p.tempoProducao.toString() : "")
+                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toString() : "")
+                        setFOutros(p.outrosCustos ? p.outrosCustos.toString() : "")
+                      } else {
+                        // Edição simples
+                        setActiveTab('simples')
+                        setPIdEdicao(p.id.toString())
+                        setPNome(p.nome)
+                        setPCategoria(p.categoria || "Cosméticos")
+                        setPNf(p.codNotaFiscal || "")
+                        setPMedida(p.tipoQuantidade || "un")
+                        setPQtd(p.quantidadeEstoque.toString())
+                        setPCusto(p.precoCompra.toString())
+                        setPLucro(p.percentualLucro.toString())
+                        setPVenda(p.precoVenda.toString())
+                      }
                       window.scrollTo({ top: 0, behavior: 'smooth' })
                     }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors">
                       <Edit2 className="w-4 h-4" />
