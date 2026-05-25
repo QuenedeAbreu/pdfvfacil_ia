@@ -18,6 +18,7 @@ type Produto = {
   tempoProducao?: number | null;
   custoHoraProducao?: number | null;
   outrosCustos?: number | null;
+  isServico?: boolean;
   ativo: boolean;
   produtosFabricados?: {
     id: number;
@@ -37,20 +38,21 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const [pCategoria, setPCategoria] = useState("Cosméticos")
   const [pNf, setPNf] = useState("")
   const [pMedida, setPMedida] = useState("un")
-  const [pQtd, setPQtd] = useState("1")
-  const [pCusto, setPCusto] = useState("0")
-  const [pLucro, setPLucro] = useState("50")
-  const [pVenda, setPVenda] = useState("0")
+  const [pQtd, setPQtd] = useState("1.00")
+  const [pCusto, setPCusto] = useState("0.00")
+  const [pLucro, setPLucro] = useState("50.00")
+  const [pVenda, setPVenda] = useState("0.00")
+  const [pIsServico, setPIsServico] = useState(false)
   const [loadingP, setLoadingP] = useState(false)
 
   // Estado formulário Fabricado
   const [fIdEdicao, setFIdEdicao] = useState("")
   const [fNome, setFNome] = useState("")
   const [fCategoria, setFCategoria] = useState("Papelaria")
-  const [fQtdEstoque, setFQtdEstoque] = useState("1")
+  const [fQtdEstoque, setFQtdEstoque] = useState("1.00")
   const [composicao, setComposicao] = useState<{ id: string, nome: string, quantidade: string, preco: number }[]>([])
   const [insumoSelecionado, setInsumoSelecionado] = useState("")
-  const [insumoQtd, setInsumoQtd] = useState("1")
+  const [insumoQtd, setInsumoQtd] = useState("1.00")
   const [fTempo, setFTempo] = useState("")
   const [fCustoHora, setFCustoHora] = useState("")
   const [fOutros, setFOutros] = useState("")
@@ -80,6 +82,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
     fd.append("precoCompra", pCusto)
     fd.append("percentualLucro", pLucro)
     fd.append("precoVenda", pVenda)
+    fd.append("isServico", pIsServico ? "true" : "false")
 
     const res = await salvarProduto(fd)
     if (res.error) showAlert(res.error)
@@ -93,7 +96,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
 
   const limparFormSimples = () => {
     setPIdEdicao(""); setPNome(""); setPCategoria("Cosméticos"); setPNf(""); setPMedida("un")
-    setPQtd("1"); setPCusto("0"); setPLucro("50"); setPVenda("0")
+    setPQtd("1.00"); setPCusto("0.00"); setPLucro("50.00"); setPVenda("0.00"); setPIsServico(false)
   }
 
   // Lógica Fabricado
@@ -112,7 +115,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
       preco: custoUnit
     }])
     setInsumoSelecionado("")
-    setInsumoQtd("1")
+    setInsumoQtd("1.00")
   }
 
   const removeInsumo = (idx: number) => {
@@ -153,7 +156,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   }
 
   const limparFormFab = () => {
-    setFIdEdicao(""); setFNome(""); setFCategoria("Papelaria"); setFQtdEstoque("1")
+    setFIdEdicao(""); setFNome(""); setFCategoria("Papelaria"); setFQtdEstoque("1.00")
     setComposicao([]); setFTempo(""); setFCustoHora(""); setFOutros(""); setFLucro("")
   }
 
@@ -186,9 +189,15 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
             <Package className="w-5 h-5 text-emerald-500" />
-            {pIdEdicao ? "Editar" : "Cadastro de"} Insumo / Revenda
+            {pIdEdicao ? "Editar" : "Cadastro de"} Insumo / Revenda / Serviço
           </h2>
           <form onSubmit={handleSalvarSimples} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="sm:col-span-2 mb-1 flex items-center gap-2">
+              <input type="checkbox" id="isServico" checked={pIsServico} onChange={e => setPIsServico(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
+              <label htmlFor="isServico" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                Este item é um Serviço (Não possui estoque nem custo fixo de compra)
+              </label>
+            </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome do Produto *</label>
               <input type="text" required value={pNome} onChange={e => setPNome(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -203,23 +212,23 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NF-e (Opcional)</label>
-              <input type="text" value={pNf} onChange={e => setPNf(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="text" disabled={pIsServico} value={pNf} onChange={e => setPNf(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Qtd *</label>
-              <input type="number" step="0.01" required value={pQtd} onChange={e => { setPQtd(e.target.value); handleCalcVendaSimples(pCusto, pLucro, e.target.value) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pQtd} onChange={e => { setPQtd(e.target.value); handleCalcVendaSimples(pCusto, pLucro, e.target.value) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Total Pago R$ *</label>
-              <input type="number" step="0.01" required value={pCusto} onChange={e => { setPCusto(e.target.value); handleCalcVendaSimples(e.target.value, pLucro, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pCusto} onChange={e => { setPCusto(e.target.value); handleCalcVendaSimples(e.target.value, pLucro, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Margem Lucro %</label>
-              <input type="number" step="0.01" value={pLucro} onChange={e => { setPLucro(e.target.value); handleCalcVendaSimples(pCusto, e.target.value, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="number" step="0.01" disabled={pIsServico} value={pLucro} onChange={e => { setPLucro(e.target.value); handleCalcVendaSimples(pCusto, e.target.value, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Venda (Editável)</label>
-              <input type="number" step="0.01" value={pVenda} onChange={e => setPVenda(e.target.value)} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="number" step="0.01" required value={pVenda} onChange={e => setPVenda(e.target.value)} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
             <div className="sm:col-span-2 pt-2 flex gap-2">
               <button disabled={loadingP} type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50">
@@ -351,7 +360,9 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     <div className="text-[10px] text-slate-400 mt-0.5">{p.categoria || 'Sem categoria'}</div>
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    {p.produtosFabricados && p.produtosFabricados.length > 0 ? (
+                    {p.isServico ? (
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded font-semibold border border-blue-200 dark:border-blue-800/50">Serviço</span>
+                    ) : p.produtosFabricados && p.produtosFabricados.length > 0 ? (
                       <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-1 rounded font-semibold border border-amber-200 dark:border-amber-800/50">Personalizado</span>
                     ) : (
                       <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded font-semibold border border-emerald-200 dark:border-emerald-800/50">Revenda</span>
@@ -364,10 +375,14 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <input type="number" defaultValue={p.quantidadeEstoque} onBlur={(e) => edicaoExpressaEstoque(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                    {p.isServico ? (
+                      <span className="text-slate-400 font-mono text-xs">N/A</span>
+                    ) : (
+                      <input type="number" step="0.01" defaultValue={p.quantidadeEstoque.toFixed(2)} onBlur={(e) => edicaoExpressaEstoque(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    <input type="number" step="0.01" defaultValue={p.precoVenda} onBlur={(e) => edicaoExpressaEstoque(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                    <input type="number" step="0.01" defaultValue={p.precoVenda.toFixed(2)} onBlur={(e) => edicaoExpressaEstoque(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => {
@@ -377,19 +392,19 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setFIdEdicao(p.id.toString())
                         setFNome(p.nome)
                         setFCategoria(p.categoria || "Papelaria")
-                        setFQtdEstoque(p.quantidadeEstoque.toString())
-                        setFLucro(p.percentualLucro.toString())
+                        setFQtdEstoque(p.quantidadeEstoque.toFixed(2))
+                        setFLucro(p.percentualLucro.toFixed(2))
                         
                         const comp = p.produtosFabricados.map(pf => ({
                           id: pf.insumoId.toString(),
                           nome: pf.insumo.nome,
-                          quantidade: pf.quantidade.toString(),
+                          quantidade: pf.quantidade.toFixed(2),
                           preco: pf.insumo.precoVenda || 0
                         }))
                         setComposicao(comp)
-                        setFTempo(p.tempoProducao ? p.tempoProducao.toString() : "")
-                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toString() : "")
-                        setFOutros(p.outrosCustos ? p.outrosCustos.toString() : "")
+                        setFTempo(p.tempoProducao ? p.tempoProducao.toFixed(2) : "")
+                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toFixed(2) : "")
+                        setFOutros(p.outrosCustos ? p.outrosCustos.toFixed(2) : "")
                       } else {
                         // Edição simples
                         setActiveTab('simples')
@@ -398,10 +413,11 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setPCategoria(p.categoria || "Cosméticos")
                         setPNf(p.codNotaFiscal || "")
                         setPMedida(p.tipoQuantidade || "un")
-                        setPQtd(p.quantidadeEstoque.toString())
-                        setPCusto(p.precoCompra.toString())
-                        setPLucro(p.percentualLucro.toString())
-                        setPVenda(p.precoVenda.toString())
+                        setPQtd(p.quantidadeEstoque.toFixed(2))
+                        setPCusto(p.precoCompra.toFixed(2))
+                        setPLucro(p.percentualLucro.toFixed(2))
+                        setPVenda(p.precoVenda.toFixed(2))
+                        setPIsServico(p.isServico || false)
                       }
                       window.scrollTo({ top: 0, behavior: 'smooth' })
                     }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors">

@@ -29,6 +29,7 @@ model Product {
   ativo              Boolean                          @default(true)
   custoHoraProducao  Float?                           @default(0)
   outrosCustos       Float?                           @default(0)
+  isServico          Boolean                          @default(false)
   tempoProducao      Float?                           @default(0)
   itensKit           KitItem[]
   insumosUsados      ManufacturedProductComposition[] @relation("Insumo")

@@ -40,7 +40,7 @@ export async function finalizarVenda(data: {
     for (const item of carrinho) {
       if (!item.isKit) {
         const prod = await prisma.product.findUnique({ where: { id: parseInt(item.id) } })
-        if (!prod || prod.quantidadeEstoque < item.quantidade) {
+        if (!prod || (!prod.isServico && prod.quantidadeEstoque < item.quantidade)) {
           return { error: `Estoque insuficiente para ${prod?.nome || 'um dos produtos'}` }
         }
       } else {
@@ -90,10 +90,13 @@ export async function finalizarVenda(data: {
 
     if (!isOrcamento) {
       if (!item.isKit) {
-        await prisma.product.update({
-          where: { id: parseInt(item.id) },
-          data: { quantidadeEstoque: { decrement: item.quantidade } }
-        })
+        const prod = await prisma.product.findUnique({ where: { id: parseInt(item.id) } })
+        if (prod && !prod.isServico) {
+          await prisma.product.update({
+            where: { id: parseInt(item.id) },
+            data: { quantidadeEstoque: { decrement: item.quantidade } }
+          })
+        }
       } else {
         const kit = await prisma.kit.findUnique({ where: { id: parseInt(item.id) }, include: { itens: true } })
         if (kit) {
@@ -144,7 +147,7 @@ export async function converterOrcamentoEmVenda(vendaId: number) {
   for (const item of venda.itens) {
     if (!item.isKit) {
       const prod = await prisma.product.findUnique({ where: { id: item.itemId } });
-      if (!prod || prod.quantidadeEstoque < item.quantidade) {
+      if (!prod || (!prod.isServico && prod.quantidadeEstoque < item.quantidade)) {
         return { error: `Estoque insuficiente para o produto ID ${item.itemId}` };
       }
     } else {
@@ -163,10 +166,13 @@ export async function converterOrcamentoEmVenda(vendaId: number) {
   // Baixa de estoque
   for (const item of venda.itens) {
     if (!item.isKit) {
-      await prisma.product.update({
-        where: { id: item.itemId },
-        data: { quantidadeEstoque: { decrement: item.quantidade } }
-      });
+      const prod = await prisma.product.findUnique({ where: { id: item.itemId } });
+      if (prod && !prod.isServico) {
+        await prisma.product.update({
+          where: { id: item.itemId },
+          data: { quantidadeEstoque: { decrement: item.quantidade } }
+        });
+      }
     } else {
       const kit = await prisma.kit.findUnique({ where: { id: item.itemId }, include: { itens: true } });
       if (kit) {

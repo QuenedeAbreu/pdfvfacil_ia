@@ -33,8 +33,9 @@ export async function salvarProduto(formData: FormData) {
   const precoCompra = parseFloat(formData.get("precoCompra") as string)
   const percentualLucro = parseFloat(formData.get("percentualLucro") as string)
   const precoVenda = parseFloat(formData.get("precoVenda") as string)
+  const isServico = formData.get("isServico") === "true"
 
-  if (quantidadeEstoque < 0) {
+  if (!isServico && quantidadeEstoque < 0) {
     return { error: "O estoque não pode ficar negativo!" }
   }
 
@@ -47,6 +48,7 @@ export async function salvarProduto(formData: FormData) {
     precoCompra,
     percentualLucro,
     precoVenda,
+    isServico,
     ativo: true,
   }
 

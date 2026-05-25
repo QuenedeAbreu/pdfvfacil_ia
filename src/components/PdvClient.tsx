@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { finalizarVenda, buscarOrcamentoPorId } from '@/actions/sale'
 import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2 } from 'lucide-react'
 import { useDialogStore } from '@/store/useDialogStore'
+import { PatternFormat } from 'react-number-format'
 
 type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number }
 type Kit = { id: number, nome: string, precoVenda: number }
@@ -27,8 +28,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const [paginaOrcamento, setPaginaOrcamento] = useState(1)
   const [itensPorPagina, setItensPorPagina] = useState(5)
 
-  const orcamentosFiltrados = orcamentos.filter(o => 
-    o.id.toString().includes(termoBuscaOrcamento) || 
+  const orcamentosFiltrados = orcamentos.filter(o =>
+    o.id.toString().includes(termoBuscaOrcamento) ||
     (o.cliente || "").toLowerCase().includes(termoBuscaOrcamento.toLowerCase())
   )
   const totalPaginas = Math.ceil(orcamentosFiltrados.length / itensPorPagina)
@@ -57,19 +58,19 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     setVendaIdExistente(o.id);
     setCliente(o.cliente || "");
     setTelefone(o.telefone || "");
-    
-    const sumBruto = o.itens.reduce((acc, i) => acc + (i.precoOriginal * (1 - i.descontoItemPorcentagem/100) * i.quantidade), 0);
+
+    const sumBruto = o.itens.reduce((acc, i) => acc + (i.precoOriginal * (1 - i.descontoItemPorcentagem / 100) * i.quantidade), 0);
     const globalPercent = sumBruto > 0 ? (o.descontoFinal / sumBruto) * 100 : 0;
     setDescontoGlobal(globalPercent > 0 ? globalPercent.toFixed(2) : "");
 
     const novoCarrinho = o.itens.map(i => ({
       id: i.itemId.toString(),
-      nome: i.produto?.nome || `Kit ID ${i.itemId}`, 
+      nome: i.produto?.nome || `Kit ID ${i.itemId}`,
       preco: i.precoOriginal,
       quantidade: i.quantidade,
       isKit: i.isKit,
       descontoItemPercentual: i.descontoItemPorcentagem || "",
-      maxEstoque: undefined 
+      maxEstoque: undefined
     }));
     setCarrinho(novoCarrinho);
     showAlert("Orçamento carregado! Você pode alterar os itens e finalizar a Venda.");
@@ -80,13 +81,22 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     setModalBuscaOrcamento(false);
   }
 
+  const cancelarEdicaoOrcamento = () => {
+    setVendaIdExistente(undefined);
+    setCliente("");
+    setTelefone("");
+    setDescontoGlobal("");
+    setCarrinho([]);
+    window.history.replaceState(null, '', '/pdv');
+  }
+
   const gerarTextoResumo = (dados: any) => {
     let txt = `*${dados.isOrcamento ? 'ORÇAMENTO' : 'COMPROVANTE DE VENDA'}*\n`;
-    txt += `ID: #${dados.vendaId}\n`;
+    txt += `Orçamento #${dados.vendaId}\n`;
     if (dados.cliente) txt += `Cliente: ${dados.cliente}\n`;
     txt += `\n*ITENS:*\n`;
     dados.carrinho.forEach((c: any) => {
-      const sub = c.preco * c.quantidade * (1 - (Number(c.descontoItemPercentual)||0)/100);
+      const sub = c.preco * c.quantidade * (1 - (Number(c.descontoItemPercentual) || 0) / 100);
       txt += `- ${c.quantidade}x ${c.nome} | R$ ${sub.toFixed(2)}\n`;
     });
     if (dados.descontoFinal > 0) txt += `\nDesconto Extra: -R$ ${dados.descontoFinal.toFixed(2)}`;
@@ -245,6 +255,26 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
       <div className="lg:col-span-2 h-full">
         <div className="glass p-6 rounded-2xl shadow-sm h-full flex flex-col">
+          {vendaIdExistente && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+              <div>
+                <h4 className="text-amber-800 dark:text-amber-400 font-bold flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Editando Orçamento #{vendaIdExistente}
+                </h4>
+                <p className="text-sm text-amber-700/80 dark:text-amber-500 mt-1">
+                  Cliente: <span className="font-semibold">{cliente || 'Não informado'}</span>
+                  {telefone && ` | Tel: ${telefone}`}
+                </p>
+              </div>
+              <button
+                onClick={cancelarEdicaoOrcamento}
+                className="bg-white dark:bg-slate-900 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 px-4 py-2 rounded-lg text-sm font-bold border border-red-200 dark:border-red-800 shadow-sm transition-colors"
+              >
+                Cancelar Edição
+              </button>
+            </div>
+          )}
           <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 mb-6 flex flex-col sm:flex-row gap-4 items-end">
             <div className="flex-1 w-full">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Bipar ID Rápido</label>
@@ -358,7 +388,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800">
             <h3 className="text-xl font-bold text-emerald-600 mb-4 flex items-center gap-2">
-              <Check className="w-6 h-6" /> 
+              <Check className="w-6 h-6" />
               {modalResumo.dados.isOrcamento ? 'Orçamento Salvo!' : 'Venda Finalizada!'}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
@@ -388,8 +418,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
               {modalConfirmacao.isOrcamento ? 'Salvar Orçamento' : 'Finalizar Venda'}
             </h3>
             <p className="text-sm text-slate-500 mb-6">
-              {modalConfirmacao.isOrcamento 
-                ? 'Para salvar um orçamento, é obrigatório informar o nome e telefone do cliente.' 
+              {modalConfirmacao.isOrcamento
+                ? 'Para salvar um orçamento, é obrigatório informar o nome e telefone do cliente.'
                 : 'Informe os dados do cliente (opcional) para registrar na venda.'}
             </p>
 
@@ -398,37 +428,38 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                   Nome do Cliente {modalConfirmacao.isOrcamento && <span className="text-red-500">*</span>}
                 </label>
-                <input 
-                  type="text" 
-                  value={cliente} 
-                  onChange={e => setCliente(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" 
-                  placeholder={modalConfirmacao.isOrcamento ? "Obrigatório" : "Opcional..."} 
+                <input
+                  type="text"
+                  value={cliente}
+                  onChange={e => setCliente(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                  placeholder={modalConfirmacao.isOrcamento ? "Obrigatório" : "Opcional..."}
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                   Telefone / WhatsApp {modalConfirmacao.isOrcamento && <span className="text-red-500">*</span>}
                 </label>
-                <input 
-                  type="text" 
-                  value={telefone} 
-                  onChange={e => setTelefone(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" 
-                  placeholder={modalConfirmacao.isOrcamento ? "Obrigatório" : "Opcional..."} 
+                <PatternFormat
+                  format="(##) #####-####"
+                  mask="_"
+                  value={telefone}
+                  onValueChange={(values) => setTelefone(values.formattedValue)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                  placeholder={modalConfirmacao.isOrcamento ? "(99) 99999-9999 (Obrigatório)" : "(99) 99999-9999 (Opcional)"}
                 />
               </div>
             </div>
 
             <div className="flex gap-3">
-              <button 
-                onClick={() => setModalConfirmacao(null)} 
+              <button
+                onClick={() => setModalConfirmacao(null)}
                 className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 rounded-xl transition-colors"
               >
                 Cancelar
               </button>
-              <button 
-                onClick={handleFinalizar} 
+              <button
+                onClick={handleFinalizar}
                 disabled={loading}
                 className={`flex-1 font-bold py-3 rounded-xl text-white transition-all shadow-md flex items-center justify-center gap-2 ${modalConfirmacao.isOrcamento ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/30' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'} disabled:opacity-50`}
               >
@@ -452,16 +483,16 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="p-6 flex-1 overflow-y-auto">
               <div className="relative mb-6">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text" 
-                  value={termoBuscaOrcamento} 
-                  onChange={e => { setTermoBuscaOrcamento(e.target.value); setPaginaOrcamento(1); }} 
-                  placeholder="Pesquisar por ID ou Nome do Cliente..." 
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" 
+                <input
+                  type="text"
+                  value={termoBuscaOrcamento}
+                  onChange={e => { setTermoBuscaOrcamento(e.target.value); setPaginaOrcamento(1); }}
+                  placeholder="Pesquisar por ID ou Nome do Cliente..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                 />
               </div>
 
@@ -479,7 +510,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                           {o.cliente || 'Cliente Padrão'}
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
-                          {new Date(o.dataVenda).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                          {new Date(o.dataVenda).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -499,8 +530,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-500 font-medium">Mostrar:</span>
-                <select 
-                  value={itensPorPagina} 
+                <select
+                  value={itensPorPagina}
                   onChange={e => { setItensPorPagina(Number(e.target.value)); setPaginaOrcamento(1); }}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 dark:text-slate-300"
                 >
@@ -513,9 +544,9 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
               </div>
 
               <div className="flex items-center gap-4">
-                <button 
-                  disabled={paginaOrcamento === 1} 
-                  onClick={() => setPaginaOrcamento(p => p - 1)} 
+                <button
+                  disabled={paginaOrcamento === 1}
+                  onClick={() => setPaginaOrcamento(p => p - 1)}
                   className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 transition-opacity"
                 >
                   Anterior
@@ -523,9 +554,9 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <span className="text-sm text-slate-500 font-medium bg-white dark:bg-slate-900 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
                   Página {paginaOrcamento} de {Math.max(1, totalPaginas)}
                 </span>
-                <button 
-                  disabled={paginaOrcamento >= totalPaginas} 
-                  onClick={() => setPaginaOrcamento(p => p + 1)} 
+                <button
+                  disabled={paginaOrcamento >= totalPaginas}
+                  onClick={() => setPaginaOrcamento(p => p + 1)}
                   className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 transition-opacity"
                 >
                   Próxima
