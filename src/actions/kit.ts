@@ -30,7 +30,7 @@ export async function salvarKit(data: { nome: string, precoVenda: number, compos
     }
   })
 
-  const kitItensData = composicaoKit.map(item => ({
+  const kitItensData = composicaoKit.map((item: any) => ({
     kitId: createdKit.id,
     produtoId: parseInt(item.id),
     quantidade: item.quantidade

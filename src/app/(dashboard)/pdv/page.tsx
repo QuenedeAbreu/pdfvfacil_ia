@@ -7,10 +7,10 @@ export default async function PdvPage() {
   const produtos = await getProdutos()
   const kits = await getKits()
 
-  const produtosAtivos = produtos.filter(p => p.ativo)
+  const produtosAtivos = produtos.filter((p: any) => p.ativo)
 
   const historico = await getHistoricoVendas()
-  const orcamentosPendentes = historico.filter(v => v.isOrcamento).map(o => ({
+  const orcamentosPendentes = historico.filter((v: any) => v.isOrcamento).map((o: any) => ({
     id: o.id,
     cliente: o.cliente,
     total: o.total,
