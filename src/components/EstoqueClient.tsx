@@ -35,10 +35,30 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const [activeTab, setActiveTab] = useState<'simples' | 'personalizado'>('simples')
   const { showAlert, showConfirm } = useDialogStore()
 
+  const normalizeCategoria = (cat: string | null, def: string) => {
+    if (!cat) return def
+    const normalized = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    if (normalized === "cosmeticos") return "cosmeticos"
+    if (normalized === "papelaria") return "papelaria"
+    if (normalized === "insumos") return "insumos"
+    if (normalized === "servicos") return "servicos"
+    return def
+  }
+
+  const exibirCategoria = (cat: string | null) => {
+    if (!cat) return 'Sem categoria'
+    const normalized = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    if (normalized === "cosmeticos") return "Cosméticos"
+    if (normalized === "papelaria") return "Papelaria"
+    if (normalized === "insumos") return "Insumos"
+    if (normalized === "servicos") return "Serviços"
+    return cat
+  }
+
   // Estado formulário Produto Simples
   const [pIdEdicao, setPIdEdicao] = useState("")
   const [pNome, setPNome] = useState("")
-  const [pCategoria, setPCategoria] = useState("Cosméticos")
+  const [pCategoria, setPCategoria] = useState("cosmeticos")
   const [pNf, setPNf] = useState("")
   const [pMedida, setPMedida] = useState("un")
   const [pQtd, setPQtd] = useState("1")
@@ -51,7 +71,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   // Estado formulário Fabricado
   const [fIdEdicao, setFIdEdicao] = useState("")
   const [fNome, setFNome] = useState("")
-  const [fCategoria, setFCategoria] = useState("Papelaria")
+  const [fCategoria, setFCategoria] = useState("papelaria")
   const [fQtdEstoque, setFQtdEstoque] = useState("1")
   const [composicao, setComposicao] = useState<{ id: string, nome: string, quantidade: string, preco: number }[]>([])
   const [insumoSelecionado, setInsumoSelecionado] = useState("")
@@ -69,7 +89,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
     const q = parseFloat(qtdStr) || 1
     const unitCusto = c / q
     const venda = unitCusto + (unitCusto * (l / 100))
-    setPVenda(venda > 0 ? (Math.round(venda * 100) / 100).toString() : "")
+    setPVenda(venda > 0 ? venda.toFixed(2) : "")
   }
 
   const handleToggleStatus = async (id: number, ativo: boolean) => {
@@ -110,7 +130,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
 
 
   const limparFormSimples = () => {
-    setPIdEdicao(""); setPNome(""); setPCategoria("Cosméticos"); setPNf(""); setPMedida("un")
+    setPIdEdicao(""); setPNome(""); setPCategoria("cosmeticos"); setPNf(""); setPMedida("un")
     setPQtd("1"); setPCusto(""); setPLucro("50"); setPVenda(""); setPIsServico(false)
   }
 
@@ -172,7 +192,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   }
 
   const limparFormFab = () => {
-    setFIdEdicao(""); setFNome(""); setFCategoria("Papelaria"); setFQtdEstoque("1")
+    setFIdEdicao(""); setFNome(""); setFCategoria("papelaria"); setFQtdEstoque("1")
     setComposicao([]); setFTempo(""); setFCustoHora(""); setFOutros(""); setFLucro("")
   }
 
@@ -273,8 +293,8 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <input type="text" value={fNome} onChange={e => setFNome(e.target.value)} placeholder="Ex: Caixa Cenário" className="sm:col-span-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" />
                   <select value={fCategoria} onChange={e => setFCategoria(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500">
-                    <option value="Papelaria">Papelaria</option>
-                    <option value="Cosméticos">Cosméticos</option>
+                    <option value="papelaria">Papelaria</option>
+                    <option value="cosmeticos">Cosméticos</option>
                   </select>
                   <div className="flex items-center gap-2 px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
                     <label className="text-xs font-bold text-slate-500">Qtd:</label>
@@ -374,7 +394,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                   <td className="px-4 py-3 font-mono text-xs">{p.id}</td>
                   <td className="px-4 py-3 font-medium">
                     {p.nome}
-                    <div className="text-[10px] text-slate-400 mt-0.5">{p.categoria || 'Sem categoria'}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{exibirCategoria(p.categoria)}</div>
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {p.isServico ? (
@@ -395,11 +415,11 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     {p.isServico ? (
                       <span className="text-slate-400 font-mono text-xs">N/A</span>
                     ) : (
-                      <input type="number" step="0.01" defaultValue={p.quantidadeEstoque} onBlur={(e) => handleEdicaoExpressa(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                      <input type="number" step="0.01" key={`qe-${p.id}-${p.quantidadeEstoque}`} defaultValue={p.quantidadeEstoque} onBlur={(e) => handleEdicaoExpressa(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    <input type="number" step="0.01" defaultValue={p.precoVenda} onBlur={(e) => handleEdicaoExpressa(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                    <input type="number" step="0.01" key={`pv-${p.id}-${p.precoVenda}`} defaultValue={p.precoVenda ? Number(p.precoVenda).toFixed(2) : "0.00"} onBlur={(e) => handleEdicaoExpressa(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => {
@@ -408,7 +428,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setActiveTab('personalizado')
                         setFIdEdicao(p.id.toString())
                         setFNome(p.nome)
-                        setFCategoria(p.categoria || "Papelaria")
+                        setFCategoria(normalizeCategoria(p.categoria, "papelaria"))
                         setFQtdEstoque(p.quantidadeEstoque.toString())
                         setFLucro(p.percentualLucro.toString())
 
@@ -427,13 +447,13 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setActiveTab('simples')
                         setPIdEdicao(p.id.toString())
                         setPNome(p.nome)
-                        setPCategoria(p.categoria || "Cosméticos")
+                        setPCategoria(normalizeCategoria(p.categoria, "cosmeticos"))
                         setPNf(p.codNotaFiscal || "")
                         setPMedida(p.tipoQuantidade || "un")
                         setPQtd(p.quantidadeEstoque.toString())
-                        setPCusto(p.precoCompra.toString())
+                        setPCusto(p.precoCompra ? Number(p.precoCompra).toFixed(2) : "")
                         setPLucro(p.percentualLucro.toString())
-                        setPVenda(p.precoVenda.toString())
+                        setPVenda(p.precoVenda ? Number(p.precoVenda).toFixed(2) : "")
                         setPIsServico(p.isServico || false)
                       }
                       window.scrollTo({ top: 0, behavior: 'smooth' })

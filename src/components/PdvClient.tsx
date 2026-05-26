@@ -8,7 +8,7 @@ import { useDialogStore } from '@/store/useDialogStore'
 import { PatternFormat } from 'react-number-format'
 import { formatarMoeda } from '@/lib/utils'
 
-type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number }
+type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number, codNotaFiscal?: string | null }
 type Kit = { id: number, nome: string, precoVenda: number }
 type CarrinhoItem = { id: string, nome: string, preco: number, quantidade: number, isKit: boolean, maxEstoque?: number, descontoItemPercentual: number | string }
 type OrcamentoBasico = { id: number, cliente: string | null, total: number, dataVenda: Date }
@@ -22,6 +22,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const [descontoGlobal, setDescontoGlobal] = useState<number | string>("")
   const [produtoSelecionado, setProdutoSelecionado] = useState("")
   const [buscandoID, setBuscandoID] = useState("")
+  const [dropdownAberto, setDropdownAberto] = useState(false)
+  const [filtroPesquisa, setFiltroPesquisa] = useState("")
   const [loading, setLoading] = useState(false)
   const { showAlert } = useDialogStore()
   const [vendaIdExistente, setVendaIdExistente] = useState<number | undefined>(undefined)
@@ -40,6 +42,37 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const orcamentosPaginados = orcamentosFiltrados.slice((paginaOrcamento - 1) * itensPorPagina, paginaOrcamento * itensPorPagina)
 
   const orcamentoId = searchParams.get('orcamentoId')
+
+  const allSelectableItems = [
+    ...produtos.map(p => ({
+      rawId: `p-${p.id}`,
+      type: 'p',
+      id: p.id,
+      nome: p.nome,
+      precoVenda: p.precoVenda,
+      codNotaFiscal: p.codNotaFiscal || ""
+    })),
+    ...kits.map(k => ({
+      rawId: `k-${k.id}`,
+      type: 'k',
+      id: k.id,
+      nome: k.nome,
+      precoVenda: k.precoVenda,
+      codNotaFiscal: ""
+    }))
+  ]
+
+  const itemsSelectBoxFiltrados = allSelectableItems.filter(item => {
+    const term = filtroPesquisa.toLowerCase().trim()
+    if (!term) return true
+    return (
+      item.id.toString().includes(term) ||
+      item.nome.toLowerCase().includes(term) ||
+      item.codNotaFiscal.toLowerCase().includes(term)
+    )
+  })
+
+  const itemSelecionadoObj = allSelectableItems.find(x => x.rawId === produtoSelecionado)
 
   useEffect(() => {
     if (orcamentoId) {
@@ -166,12 +199,37 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
 
   const handleBuscarID = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      const p = produtos.find(x => x.id === parseInt(buscandoID))
-      if (p) adicionarProduto(`p-${p.id}`)
-      else {
-        const k = kits.find(x => x.id === parseInt(buscandoID))
-        if (k) adicionarProduto(`k-${k.id}`)
-        else showAlert("ID não localizado.")
+      const term = buscandoID.trim()
+      if (!term) return
+
+      let found = false
+      const idNum = parseInt(term)
+
+      if (!isNaN(idNum)) {
+        const p = produtos.find(x => x.id === idNum)
+        if (p) {
+          adicionarProduto(`p-${p.id}`)
+          found = true
+        } else {
+          const k = kits.find(x => x.id === idNum)
+          if (k) {
+            adicionarProduto(`k-${k.id}`)
+            found = true
+          }
+        }
+      }
+
+      if (!found) {
+        // Search by barcode / codNotaFiscal
+        const p = produtos.find(x => x.codNotaFiscal === term)
+        if (p) {
+          adicionarProduto(`p-${p.id}`)
+          found = true
+        }
+      }
+
+      if (!found) {
+        showAlert("Item não localizado pelo ID ou Código.")
       }
       setBuscandoID("")
     }
@@ -290,17 +348,79 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Bipar ID Rápido</label>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="number" value={buscandoID} onChange={e => setBuscandoID(e.target.value)} onKeyDown={handleBuscarID} placeholder="Ex: 1 e aperte Enter" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
+                <input type="text" value={buscandoID} onChange={e => setBuscandoID(e.target.value)} onKeyDown={handleBuscarID} placeholder="Ex: 1 ou Código de Barras + Enter" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
               </div>
             </div>
             <div className="flex items-center text-slate-400 font-bold px-2">OU</div>
-            <div className="flex-2 w-full flex gap-2">
-              <select value={produtoSelecionado} onChange={e => setProdutoSelecionado(e.target.value)} className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
-                <option value="">Selecione na lista...</option>
-                {produtos.map(p => <option key={`p-${p.id}`} value={`p-${p.id}`}>📦 [ID {p.id}] {p.nome} - {formatarMoeda(p.precoVenda)}</option>)}
-                {kits.map(k => <option key={`k-${k.id}`} value={`k-${k.id}`}>🎁 [ID {k.id}] {k.nome} - {formatarMoeda(k.precoVenda)}</option>)}
-              </select>
-              <button onClick={() => { adicionarProduto(produtoSelecionado); setProdutoSelecionado(""); }} className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-lg transition-colors">
+            <div className="flex-2 w-full flex gap-2 relative">
+              <div className="flex-1 relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownAberto(!dropdownAberto)}
+                  className="w-full text-left px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm flex items-center justify-between min-h-[38px] cursor-pointer"
+                >
+                  <span className="truncate">
+                    {itemSelecionadoObj 
+                      ? `${itemSelecionadoObj.type === 'p' ? '📦' : '🎁'} [ID ${itemSelecionadoObj.id}] ${itemSelecionadoObj.nome} - ${formatarMoeda(itemSelecionadoObj.precoVenda)}`
+                      : "Selecione na lista..."}
+                  </span>
+                  <span className="ml-2 text-slate-400 text-xs">▼</span>
+                </button>
+
+                {dropdownAberto && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => { setDropdownAberto(false); setFiltroPesquisa(""); }} />
+                    <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 p-2 flex flex-col max-h-[300px] animate-in fade-in zoom-in-95 duration-100">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={filtroPesquisa}
+                        onChange={e => setFiltroPesquisa(e.target.value)}
+                        placeholder="Pesquisar por nome, ID ou código..."
+                        className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (itemsSelectBoxFiltrados.length > 0) {
+                              setProdutoSelecionado(itemsSelectBoxFiltrados[0].rawId);
+                              setDropdownAberto(false);
+                              setFiltroPesquisa("");
+                            }
+                          } else if (e.key === 'Escape') {
+                            setDropdownAberto(false);
+                            setFiltroPesquisa("");
+                          }
+                        }}
+                      />
+                      <div className="overflow-y-auto flex-1 custom-scrollbar">
+                        {itemsSelectBoxFiltrados.length === 0 ? (
+                          <div className="text-center py-4 text-xs text-slate-400">Nenhum item encontrado</div>
+                        ) : (
+                          itemsSelectBoxFiltrados.map(item => (
+                            <div
+                              key={item.rawId}
+                              onClick={() => {
+                                setProdutoSelecionado(item.rawId);
+                                setDropdownAberto(false);
+                                setFiltroPesquisa("");
+                              }}
+                              className={`px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 flex justify-between items-center transition-colors ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
+                            >
+                              <span className="truncate">
+                                {item.type === 'p' ? '📦' : '🎁'} [ID {item.id}] {item.nome}
+                              </span>
+                              <span className="text-xs text-slate-400 flex-shrink-0 ml-2">
+                                {formatarMoeda(item.precoVenda)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button onClick={() => { adicionarProduto(produtoSelecionado); setProdutoSelecionado(""); }} className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-lg transition-colors flex-shrink-0">
                 <Plus className="w-5 h-5" />
               </button>
             </div>

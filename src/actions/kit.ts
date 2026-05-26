@@ -18,6 +18,7 @@ export async function getKits() {
 
 export async function salvarKit(data: { idEdicao?: string | number, nome: string, precoVenda: number, composicaoKit: { id: string, quantidade: number }[] }) {
   const { idEdicao, nome, precoVenda, composicaoKit } = data
+  const parsedPrecoVenda = isNaN(precoVenda) ? 0 : Math.round(precoVenda * 100) / 100
 
   if (!nome || composicaoKit.length === 0) {
     return { error: "Kit incompleto!" }
@@ -32,7 +33,7 @@ export async function salvarKit(data: { idEdicao?: string | number, nome: string
         where: { id: kitId },
         data: {
           nome,
-          precoVenda,
+          precoVenda: parsedPrecoVenda,
         }
       })
       // Delete existing items
@@ -43,7 +44,7 @@ export async function salvarKit(data: { idEdicao?: string | number, nome: string
       const createdKit = await prisma.kit.create({
         data: {
           nome,
-          precoVenda,
+          precoVenda: parsedPrecoVenda,
         }
       })
       kitId = createdKit.id

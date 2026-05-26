@@ -35,12 +35,14 @@ export async function salvarProduto(formData: FormData) {
   
   let precoCompra = parseFloat(formData.get("precoCompra") as string)
   if (isNaN(precoCompra)) precoCompra = 0
+  precoCompra = Math.round(precoCompra * 100) / 100
   
   let percentualLucro = parseFloat(formData.get("percentualLucro") as string)
   if (isNaN(percentualLucro)) percentualLucro = 0
   
   let precoVenda = parseFloat(formData.get("precoVenda") as string)
   if (isNaN(precoVenda)) precoVenda = 0
+  precoVenda = Math.round(precoVenda * 100) / 100
   
   const isServico = formData.get("isServico") === "true"
 
@@ -79,9 +81,9 @@ export async function salvarProdutoFabricado(data: any) {
   const { idEdicao, nome, categoria, qtdEstoque, custoTotalFabricacao, lucro, precoVendaFinal, composicaoInsumos, tempoProducao, custoHoraProducao, outrosCustos } = data
 
   const parsedQtdEstoque = isNaN(parseFloat(qtdEstoque)) ? 0 : parseFloat(qtdEstoque)
-  const parsedCustoTotalFabricacao = isNaN(parseFloat(custoTotalFabricacao)) ? 0 : parseFloat(custoTotalFabricacao)
+  const parsedCustoTotalFabricacao = isNaN(parseFloat(custoTotalFabricacao)) ? 0 : Math.round(parseFloat(custoTotalFabricacao) * 100) / 100
   const parsedLucro = isNaN(parseFloat(lucro)) ? 0 : parseFloat(lucro)
-  const parsedPrecoVendaFinal = isNaN(parseFloat(precoVendaFinal)) ? 0 : parseFloat(precoVendaFinal)
+  const parsedPrecoVendaFinal = isNaN(parseFloat(precoVendaFinal)) ? 0 : Math.round(parseFloat(precoVendaFinal) * 100) / 100
   const parsedTempoProducao = isNaN(parseFloat(tempoProducao)) ? 0 : parseFloat(tempoProducao)
   const parsedCustoHoraProducao = isNaN(parseFloat(custoHoraProducao)) ? 0 : parseFloat(custoHoraProducao)
   const parsedOutrosCustos = isNaN(parseFloat(outrosCustos)) ? 0 : parseFloat(outrosCustos)
@@ -173,7 +175,7 @@ export async function toggleProdutoStatus(id: number, currentStatus: boolean) {
 export async function edicaoExpressaEstoque(id: number, campo: string, valor: number) {
   if (isNaN(valor)) return { error: "Valor inválido" }
   const data: any = {}
-  data[campo] = valor
+  data[campo] = (campo === 'precoVenda' || campo === 'precoCompra') ? Math.round(valor * 100) / 100 : valor
   await prisma.product.update({
     where: { id },
     data

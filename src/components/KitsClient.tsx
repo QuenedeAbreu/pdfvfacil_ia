@@ -71,7 +71,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     const somaTotal = comp.reduce((acc, curr) => acc + (curr.precoVenda * parseFloat(curr.quantidade)), 0)
     const desc = parseFloat(descontoStr) || 0
     const finalPrice = somaTotal - (somaTotal * (desc / 100))
-    setPrecoSugeridoSoma(finalPrice > 0 ? (Math.round(finalPrice * 100) / 100).toString() : "")
+    setPrecoSugeridoSoma(finalPrice > 0 ? finalPrice.toFixed(2) : "")
   }
 
   const handleDescontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +120,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     } else {
       setDescontoPercentual("")
     }
-    setPrecoSugeridoSoma(kit.precoVenda.toString())
+    setPrecoSugeridoSoma(Number(kit.precoVenda).toFixed(2))
   }
 
   const handleExcluirKit = async (id: number) => {
