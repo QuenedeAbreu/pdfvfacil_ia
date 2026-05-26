@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { salvarKit } from '@/actions/kit'
+import { salvarKit, excluirKit } from '@/actions/kit'
 import { useDialogStore } from '@/store/useDialogStore'
 import { Gift, Plus, Trash, Search, Pencil } from 'lucide-react'
 
@@ -18,12 +18,15 @@ type Kit = {
   itens: {
     quantidade: number;
     produto: {
+      id: number;
       nome: string;
+      precoVenda: number;
     }
   }[]
 }
 
 export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: Produto[] }) {
+  const [idEdicao, setIdEdicao] = useState("")
   const [nomeKit, setNomeKit] = useState("")
   const [composicao, setComposicao] = useState<{ id: string, nome: string, quantidade: string, precoVenda: number }[]>([])
   
@@ -69,8 +72,16 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   }
 
   const handleDescontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDescontoPercentual(e.target.value)
-    recalcularTotaisKit(composicao, e.target.value)
+    if (e.target.value === "") {
+      setDescontoPercentual("")
+      recalcularTotaisKit(composicao, "0")
+    } else {
+      let val = parseFloat(e.target.value)
+      if (val < 0) val = 0
+      if (val > 100) val = 100
+      setDescontoPercentual(val.toString())
+      recalcularTotaisKit(composicao, val.toString())
+    }
   }
 
   const handlePrecoManualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,10 +89,57 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     setDescontoPercentual("0") // Zera o desconto percentual se o usuário digitar o preço manualmente
   }
 
+  const limparFormKit = () => {
+    setIdEdicao("")
+    setNomeKit("")
+    setComposicao([])
+    setDescontoPercentual("0")
+    setPrecoSugeridoSoma("0")
+    setProdutoSelecionado("")
+    setProdutoQtd("1")
+  }
+
+  const handleEditarKit = (kit: Kit) => {
+    setIdEdicao(kit.id.toString())
+    setNomeKit(kit.nome)
+    const comp = kit.itens.map(item => ({
+      id: item.produto.id.toString(),
+      nome: item.produto.nome,
+      quantidade: item.quantidade.toString(),
+      precoVenda: item.produto.precoVenda
+    }))
+    setComposicao(comp)
+    // Calcular desconto percentual aproximado baseado nos valores
+    const somaTotal = comp.reduce((acc, curr) => acc + (curr.precoVenda * parseFloat(curr.quantidade)), 0)
+    if (somaTotal > 0) {
+      const desc = ((somaTotal - kit.precoVenda) / somaTotal) * 100
+      setDescontoPercentual(desc > 0 ? desc.toFixed(2) : "0")
+    } else {
+      setDescontoPercentual("0")
+    }
+    setPrecoSugeridoSoma(kit.precoVenda.toFixed(2))
+  }
+
+  const handleExcluirKit = async (id: number) => {
+    const confirmacao = await showConfirm("Tem certeza que deseja excluir este kit?")
+    if (!confirmacao) return
+    
+    const res = await excluirKit(id)
+    if (res.error) {
+      showAlert(res.error)
+    } else {
+      showAlert("Kit excluído com sucesso!")
+      if (idEdicao === id.toString()) {
+        limparFormKit()
+      }
+    }
+  }
+
   const handleSalvarKit = async () => {
     if (!nomeKit || composicao.length === 0) return showAlert("Preencha o nome do kit e adicione produtos.")
     setLoading(true)
     const data = {
+      idEdicao: idEdicao ? parseInt(idEdicao) : undefined,
       nome: nomeKit,
       precoVenda: parseFloat(precoSugeridoSoma),
       composicaoKit: composicao.map(c => ({ id: c.id, quantidade: parseFloat(c.quantidade) }))
@@ -89,11 +147,8 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     const res = await salvarKit(data)
     if (res.error) showAlert(res.error)
     else {
-      showAlert("Kit salvo com sucesso!")
-      setNomeKit("")
-      setComposicao([])
-      setDescontoPercentual("0")
-      setPrecoSugeridoSoma("0")
+      showAlert(idEdicao ? "Kit atualizado com sucesso!" : "Kit salvo com sucesso!")
+      limparFormKit()
     }
     setLoading(false)
   }
@@ -108,7 +163,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
             <Gift className="w-5 h-5 text-purple-500" /> 
-            Montar Novo Kit
+            {idEdicao ? "Editar Kit" : "Montar Novo Kit"}
           </h2>
           
           <div className="space-y-5 text-sm">
@@ -120,12 +175,12 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
             <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-800/30">
               <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Adicionar Produtos ao Kit</span>
               <div className="flex gap-2 mb-4">
-                <select value={produtoSelecionado} onChange={e=>setProdutoSelecionado(e.target.value)} className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                <select value={produtoSelecionado} onChange={e=>setProdutoSelecionado(e.target.value)} className="flex-1 min-w-0 px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
                   <option value="">Selecionar...</option>
                   {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
-                <input type="number" step="0.01" value={produtoQtd} onChange={e=>setProdutoQtd(e.target.value)} placeholder="Qtd" className="w-16 px-2 py-2 text-center text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
-                <button onClick={adicionarProdutoKit} className="bg-purple-500 hover:bg-purple-600 text-white px-4 rounded-xl font-bold transition-colors shadow-md shadow-purple-500/20">
+                <input type="number" step="0.01" value={produtoQtd} onChange={e=>setProdutoQtd(e.target.value)} placeholder="Qtd" className="w-14 flex-shrink-0 px-1 py-2 text-center text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
+                <button onClick={adicionarProdutoKit} className="bg-purple-500 hover:bg-purple-600 text-white px-3 flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-colors shadow-md shadow-purple-500/20">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -152,7 +207,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Desc. Kit %</label>
-                <input type="number" value={descontoPercentual} onChange={handleDescontoChange} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
+                <input type="number" min="0" max="100" value={descontoPercentual} onChange={handleDescontoChange} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Preço Final</label>
@@ -162,14 +217,21 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5 mt-6">
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5 mt-6 gap-2">
           <div>
             <span className="text-xs text-slate-400 block uppercase tracking-wider mb-1">Preço do Kit:</span>
             <span className="text-2xl font-black text-slate-800 dark:text-white">R$ {parseFloat(precoSugeridoSoma || "0").toFixed(2)}</span>
           </div>
-          <button disabled={loading || composicao.length === 0} onClick={handleSalvarKit} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors shadow-lg shadow-purple-600/30 disabled:opacity-50">
-            Salvar Kit
-          </button>
+          <div className="flex gap-2">
+            {idEdicao && (
+              <button onClick={limparFormKit} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 py-3 rounded-xl text-sm transition-colors">
+                Cancelar
+              </button>
+            )}
+            <button disabled={loading || composicao.length === 0} onClick={handleSalvarKit} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors shadow-lg shadow-purple-600/30 disabled:opacity-50">
+              {idEdicao ? "Atualizar" : "Salvar Kit"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -193,6 +255,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
                 <th className="px-4 py-3">Nome do Kit</th>
                 <th className="px-4 py-3 text-left">Produtos Inclusos</th>
                 <th className="px-4 py-3 text-right">Preço de Venda</th>
+                <th className="px-4 py-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
@@ -212,11 +275,21 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
                   <td className="px-4 py-4 text-right font-black text-purple-600 dark:text-purple-400">
                     R$ {k.precoVenda.toFixed(2)}
                   </td>
+                  <td className="px-4 py-4 text-center">
+                    <div className="flex justify-center gap-2">
+                      <button onClick={() => handleEditarKit(k)} className="p-1.5 text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Editar Kit">
+                        <Pencil className="w-4.5 h-4.5" />
+                      </button>
+                      <button onClick={() => handleExcluirKit(k.id)} className="p-1.5 text-red-500 hover:text-red-700 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Excluir Kit">
+                        <Trash className="w-4.5 h-4.5" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {kitsFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-slate-500">Nenhum kit encontrado.</td>
+                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">Nenhum kit encontrado.</td>
                 </tr>
               )}
             </tbody>

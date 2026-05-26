@@ -76,6 +76,7 @@ model Sale {
   descontoFinal Float      @default(0)
   total         Float
   isOrcamento   Boolean    @default(false)
+  cancelada     Boolean    @default(false)
   itens         SaleItem[]
 }
 
@@ -86,6 +87,8 @@ model SaleItem {
   isKit                   Boolean @default(false)
   quantidade              Float
   precoOriginal           Float
+  precoCompraOriginal     Float?  @default(0)
+  nomeOriginal            String?
   descontoItemPorcentagem Float   @default(0)
   produto                 Product @relation(fields: [itemId], references: [id])
   venda                   Sale    @relation(fields: [vendaId], references: [id])

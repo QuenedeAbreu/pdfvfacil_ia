@@ -23,7 +23,7 @@ export async function finalizarVenda(data: {
   descontoFinal: number,
   total: number,
   isOrcamento: boolean,
-  carrinho: { id: string, isKit: boolean, quantidade: number, preco: number, descontoItemPercentual: number }[]
+  carrinho: { id: string, nome: string, isKit: boolean, quantidade: number, preco: number, descontoItemPercentual: number }[]
 }) {
   const { vendaIdExistente, cliente, telefone, descontoFinal, total, isOrcamento, carrinho } = data
 
@@ -35,7 +35,7 @@ export async function finalizarVenda(data: {
     return { error: "Nome e Telefone são obrigatórios para Orçamentos!" }
   }
 
-  // Validação de estoque e baixa apenas se não for orçamento
+
   if (!isOrcamento) {
     for (const item of carrinho) {
       if (!item.isKit) {
@@ -62,7 +62,7 @@ export async function finalizarVenda(data: {
   if (vendaIdExistente) {
     // Apaga os itens antigos para recriar
     await prisma.saleItem.deleteMany({ where: { vendaId: vendaIdExistente } });
-    
+
     await prisma.sale.update({
       where: { id: vendaIdExistente },
       data: { cliente, telefone, descontoFinal, total, isOrcamento }
@@ -77,6 +77,17 @@ export async function finalizarVenda(data: {
 
   // Salvar Itens e abater estoque
   for (const item of carrinho) {
+    let custo = 0;
+    if (!item.isKit) {
+      const p = await prisma.product.findUnique({ where: { id: parseInt(item.id) } });
+      if (p) custo = p.precoCompra || 0;
+    } else {
+      const k = await prisma.kit.findUnique({ where: { id: parseInt(item.id) }, include: { itens: { include: { produto: true } } } });
+      if (k) {
+        custo = k.itens.reduce((acc, ki) => acc + ((ki.produto?.precoCompra || 0) * ki.quantidade), 0);
+      }
+    }
+
     await prisma.saleItem.create({
       data: {
         vendaId: vendaId!,
@@ -84,6 +95,8 @@ export async function finalizarVenda(data: {
         isKit: item.isKit,
         quantidade: item.quantidade,
         precoOriginal: item.preco,
+        precoCompraOriginal: custo,
+        nomeOriginal: item.nome,
         descontoItemPorcentagem: item.descontoItemPercentual
       }
     })
@@ -130,6 +143,23 @@ export async function buscarOrcamentoPorId(id: number) {
 
   if (!orcamento || !orcamento.isOrcamento) {
     return { error: "Orçamento não encontrado ou já convertido em venda." };
+  }
+
+  // Para orçamentos, nós sempre carregamos os preços e nomes atuais do estoque
+  for (const item of orcamento.itens) {
+    if (!item.isKit) {
+      const prod = await prisma.product.findUnique({ where: { id: item.itemId } });
+      if (prod) {
+        item.precoOriginal = prod.precoVenda;
+        item.nomeOriginal = prod.nome;
+      }
+    } else {
+      const kit = await prisma.kit.findUnique({ where: { id: item.itemId } });
+      if (kit) {
+        item.precoOriginal = kit.precoVenda;
+        item.nomeOriginal = kit.nome;
+      }
+    }
   }
 
   return { success: true, data: orcamento };
@@ -190,6 +220,53 @@ export async function converterOrcamentoEmVenda(vendaId: number) {
   await prisma.sale.update({
     where: { id: vendaId },
     data: { isOrcamento: false }
+  });
+
+  revalidatePath("/pdv");
+  revalidatePath("/estoque");
+  revalidatePath("/relatorios");
+
+  return { success: true };
+}
+
+export async function cancelarVenda(vendaId: number) {
+  const venda = await prisma.sale.findUnique({
+    where: { id: vendaId },
+    include: { itens: true }
+  });
+
+  if (!venda) return { error: "Venda não encontrada." };
+  if (venda.cancelada) return { error: "Esta venda já está cancelada." };
+
+  // Se não for orçamento (ou seja, foi venda real e abateu estoque), devolver ao estoque
+  if (!venda.isOrcamento) {
+    for (const item of venda.itens) {
+      if (!item.isKit) {
+        const prod = await prisma.product.findUnique({ where: { id: item.itemId } });
+        if (prod && !prod.isServico) {
+          await prisma.product.update({
+            where: { id: item.itemId },
+            data: { quantidadeEstoque: { increment: item.quantidade } }
+          });
+        }
+      } else {
+        const kit = await prisma.kit.findUnique({ where: { id: item.itemId }, include: { itens: true } });
+        if (kit) {
+          for (const kitItem of kit.itens) {
+            await prisma.product.update({
+              where: { id: kitItem.produtoId },
+              data: { quantidadeEstoque: { increment: kitItem.quantidade * item.quantidade } }
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Marca como cancelada
+  await prisma.sale.update({
+    where: { id: vendaId },
+    data: { cancelada: true }
   });
 
   revalidatePath("/pdv");

@@ -166,17 +166,17 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
 
   return (
     <div className="space-y-6">
-      
+
       <div className="glass p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div className="flex gap-6 border-b border-slate-200 dark:border-slate-800 mb-6">
-          <button 
+          <button
             onClick={() => setActiveTab('simples')}
             className={`pb-3 font-bold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'simples' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
           >
             <Package className="w-4 h-4" />
             Produto / Insumo
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('personalizado')}
             className={`pb-3 font-bold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'personalizado' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
           >
@@ -186,144 +186,145 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
         </div>
 
         {activeTab === 'simples' && (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-            <Package className="w-5 h-5 text-emerald-500" />
-            {pIdEdicao ? "Editar" : "Cadastro de"} Insumo / Revenda / Serviço
-          </h2>
-          <form onSubmit={handleSalvarSimples} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="sm:col-span-2 mb-1 flex items-center gap-2">
-              <input type="checkbox" id="isServico" checked={pIsServico} onChange={e => setPIsServico(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
-              <label htmlFor="isServico" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                Este item é um Serviço (Não possui estoque nem custo fixo de compra)
-              </label>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome do Produto *</label>
-              <input type="text" required value={pNome} onChange={e => setPNome(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Categoria *</label>
-              <select required value={pCategoria} onChange={e => setPCategoria(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="Cosméticos">Cosméticos</option>
-                <option value="Papelaria">Papelaria</option>
-                <option value="Insumos">Insumos (Fitas, Papel, Cola)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NF-e (Opcional)</label>
-              <input type="text" disabled={pIsServico} value={pNf} onChange={e => setPNf(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Qtd *</label>
-              <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pQtd} onChange={e => { setPQtd(e.target.value); handleCalcVendaSimples(pCusto, pLucro, e.target.value) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Total Pago R$ *</label>
-              <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pCusto} onChange={e => { setPCusto(e.target.value); handleCalcVendaSimples(e.target.value, pLucro, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Margem Lucro %</label>
-              <input type="number" step="0.01" disabled={pIsServico} value={pLucro} onChange={e => { setPLucro(e.target.value); handleCalcVendaSimples(pCusto, e.target.value, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Venda (Editável)</label>
-              <input type="number" step="0.01" required value={pVenda} onChange={e => setPVenda(e.target.value)} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div className="sm:col-span-2 pt-2 flex gap-2">
-              <button disabled={loadingP} type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50">
-                {pIdEdicao ? "Atualizar Produto" : "Cadastrar no Estoque"}
-              </button>
-              {pIdEdicao && (
-                <button type="button" onClick={limparFormSimples} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 rounded-xl transition-colors">
-                  Cancelar
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+              <Package className="w-5 h-5 text-emerald-500" />
+              {pIdEdicao ? "Atualizar" : "Cadastro de"} Insumo / Revenda / Serviço
+            </h2>
+            <form onSubmit={handleSalvarSimples} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="sm:col-span-2 mb-1 flex items-center gap-2">
+                <input type="checkbox" id="isServico" checked={pIsServico} onChange={e => setPIsServico(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
+                <label htmlFor="isServico" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Este item é um Serviço (Não possui estoque nem custo fixo de compra)
+                </label>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome do Produto *</label>
+                <input type="text" required value={pNome} onChange={e => setPNome(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Categoria *</label>
+                <select required value={pCategoria} onChange={e => setPCategoria(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="cosmeticos">Cosméticos</option>
+                  <option value="papelaria">Papelaria</option>
+                  <option value="insumos">Insumos (Fitas, Papel, Cola)</option>
+                  <option value="servicos">Serviços</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NF-e (Opcional)</label>
+                <input type="text" disabled={pIsServico} value={pNf} onChange={e => setPNf(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Qtd *</label>
+                <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pQtd} onChange={e => { setPQtd(e.target.value); handleCalcVendaSimples(pCusto, pLucro, e.target.value) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Total Pago R$ *</label>
+                <input type="number" step="0.01" required={!pIsServico} disabled={pIsServico} value={pCusto} onChange={e => { setPCusto(e.target.value); handleCalcVendaSimples(e.target.value, pLucro, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Margem Lucro %</label>
+                <input type="number" step="0.01" disabled={pIsServico} value={pLucro} onChange={e => { setPLucro(e.target.value); handleCalcVendaSimples(pCusto, e.target.value, pQtd) }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Venda (Editável)</label>
+                <input type="number" step="0.01" required value={pVenda} onChange={e => setPVenda(e.target.value)} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div className="sm:col-span-2 pt-2 flex justify-end gap-2">
+                {pIdEdicao && (
+                  <button type="button" onClick={limparFormSimples} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
+                    Cancelar
+                  </button>
+                )}
+                <button disabled={loadingP} type="submit" className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-md shadow-emerald-500/20 disabled:opacity-50">
+                  {pIdEdicao ? "Atualizar" : "Cadastrar"}
                 </button>
-              )}
-            </div>
-          </form>
-        </div>
+              </div>
+            </form>
+          </div>
         )}
 
         {/* Card Produto Fabricado */}
         {activeTab === 'personalizado' && (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-amber-500" />
-              {fIdEdicao ? "Editar" : "Precificar"} produto Personalizados
-            </h2>
-            <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                <input type="text" value={fNome} onChange={e => setFNome(e.target.value)} placeholder="Ex: Caixa Cenário" className="sm:col-span-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" />
-                <select value={fCategoria} onChange={e => setFCategoria(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="Papelaria">Papelaria</option>
-                  <option value="Cosméticos">Cosméticos</option>
-                </select>
-                <div className="flex items-center gap-2 px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
-                  <label className="text-xs font-bold text-slate-500">Qtd:</label>
-                  <input type="number" min="1" step="0.01" value={fQtdEstoque} onChange={e => setFQtdEstoque(e.target.value)} className="w-full bg-transparent font-bold text-amber-600 outline-none" />
-                </div>
-              </div>
-
-              <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-800/30">
-                <span className="block text-xs font-bold text-slate-500 uppercase mb-2">Composição de Insumos (Por Unidade)</span>
-                <div className="flex gap-2 mb-3">
-                  <select value={insumoSelecionado} onChange={e => setInsumoSelecionado(e.target.value)} className="flex-1 px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs">
-                    <option value="">Selecione insumo...</option>
-                    {insumos.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
-                  </select>
-                  <input type="number" step="0.01" value={insumoQtd} onChange={e => setInsumoQtd(e.target.value)} placeholder="Qtd" className="w-16 px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs" />
-                  <button onClick={addInsumoComposicao} className="bg-amber-500 hover:bg-amber-600 text-white px-3 rounded-lg font-bold transition-colors">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {composicao.length > 0 && (
-                  <div className="max-h-24 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-                    <table className="w-full text-xs text-left">
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {composicao.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="px-2 py-1 truncate max-w-[120px]">{item.nome}</td>
-                            <td className="px-2 py-1 w-12">{item.quantidade}</td>
-                            <td className="px-2 py-1 text-right text-slate-400">R$ {(item.preco * parseFloat(item.quantidade)).toFixed(2)}</td>
-                            <td className="px-2 py-1 text-right">
-                              <button onClick={() => removeInsumo(idx)} className="text-red-400 hover:text-red-600"><Trash className="w-3 h-3" /></button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-4 gap-2 pt-1 text-xs">
-                <div><label className="block text-slate-500 mb-1">Tempo(Min)</label><input type="number" value={fTempo} onChange={e => setFTempo(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
-                <div><label className="block text-slate-500 mb-1">Custo/Hora</label><input type="number" value={fCustoHora} onChange={e => setFCustoHora(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
-                <div><label className="block text-slate-500 mb-1">Outros(R$)</label><input type="number" value={fOutros} onChange={e => setFOutros(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
-                <div><label className="block text-slate-500 mb-1">Lucro %</label><input type="number" value={fLucro} onChange={e => setFLucro(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none text-emerald-600 font-bold" /></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col justify-between">
             <div>
-              <span className="text-xs text-slate-400 block uppercase tracking-wider mb-1">Preço Sugerido Unid:</span>
-              <span className="text-xl font-black text-slate-800 dark:text-white">R$ {precoSugeridoFab.toFixed(2)}</span>
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-amber-500" />
+                {fIdEdicao ? "Atualizar" : "Precificar"} produto Personalizados
+              </h2>
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <input type="text" value={fNome} onChange={e => setFNome(e.target.value)} placeholder="Ex: Caixa Cenário" className="sm:col-span-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500" />
+                  <select value={fCategoria} onChange={e => setFCategoria(e.target.value)} className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-amber-500">
+                    <option value="Papelaria">Papelaria</option>
+                    <option value="Cosméticos">Cosméticos</option>
+                  </select>
+                  <div className="flex items-center gap-2 px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
+                    <label className="text-xs font-bold text-slate-500">Qtd:</label>
+                    <input type="number" min="1" step="0.01" value={fQtdEstoque} onChange={e => setFQtdEstoque(e.target.value)} className="w-full bg-transparent font-bold text-amber-600 outline-none" />
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-800/30">
+                  <span className="block text-xs font-bold text-slate-500 uppercase mb-2">Composição de Insumos (Por Unidade)</span>
+                  <div className="flex gap-2 mb-3">
+                    <select value={insumoSelecionado} onChange={e => setInsumoSelecionado(e.target.value)} className="flex-1 px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs">
+                      <option value="">Selecione insumo...</option>
+                      {insumos.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
+                    </select>
+                    <input type="number" step="0.01" value={insumoQtd} onChange={e => setInsumoQtd(e.target.value)} placeholder="Qtd" className="w-16 px-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs" />
+                    <button onClick={addInsumoComposicao} className="bg-amber-500 hover:bg-amber-600 text-white px-3 rounded-lg font-bold transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {composicao.length > 0 && (
+                    <div className="max-h-24 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                      <table className="w-full text-xs text-left">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {composicao.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                              <td className="px-2 py-1 truncate max-w-[120px]">{item.nome}</td>
+                              <td className="px-2 py-1 w-12">{item.quantidade}</td>
+                              <td className="px-2 py-1 text-right text-slate-400">R$ {(item.preco * parseFloat(item.quantidade)).toFixed(2)}</td>
+                              <td className="px-2 py-1 text-right">
+                                <button onClick={() => removeInsumo(idx)} className="text-red-400 hover:text-red-600"><Trash className="w-3 h-3" /></button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 pt-1 text-xs">
+                  <div><label className="block text-slate-500 mb-1">Tempo(Min)</label><input type="number" value={fTempo} onChange={e => setFTempo(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
+                  <div><label className="block text-slate-500 mb-1">Custo/Hora</label><input type="number" value={fCustoHora} onChange={e => setFCustoHora(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
+                  <div><label className="block text-slate-500 mb-1">Outros(R$)</label><input type="number" value={fOutros} onChange={e => setFOutros(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none" /></div>
+                  <div><label className="block text-slate-500 mb-1">Lucro %</label><input type="number" value={fLucro} onChange={e => setFLucro(e.target.value)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none text-emerald-600 font-bold" /></div>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              {fIdEdicao && (
-                <button onClick={limparFormFab} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 py-2 rounded-xl text-xs transition-colors">
-                  Cancelar
+
+            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
+              <div>
+                <span className="text-xs text-slate-400 block uppercase tracking-wider mb-1">Preço Sugerido Unid:</span>
+                <span className="text-xl font-black text-slate-800 dark:text-white">R$ {precoSugeridoFab.toFixed(2)}</span>
+              </div>
+              <div className="flex gap-2">
+                {fIdEdicao && (
+                  <button onClick={limparFormFab} className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-4 py-2 rounded-xl text-xs transition-colors">
+                    Cancelar
+                  </button>
+                )}
+                <button disabled={loadingF} onClick={handleSalvarFabricado} className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-md shadow-amber-500/20 disabled:opacity-50">
+                  {fIdEdicao ? "Atualizar" : "Cadastrar"}
                 </button>
-              )}
-              <button disabled={loadingF} onClick={handleSalvarFabricado} className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-md shadow-amber-500/20 disabled:opacity-50">
-                Salvar no Estoque
-              </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
 
       </div>
@@ -394,7 +395,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setFCategoria(p.categoria || "Papelaria")
                         setFQtdEstoque(p.quantidadeEstoque.toFixed(2))
                         setFLucro(p.percentualLucro.toFixed(2))
-                        
+
                         const comp = p.produtosFabricados.map(pf => ({
                           id: pf.insumoId.toString(),
                           nome: pf.insumo.nome,

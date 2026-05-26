@@ -65,7 +65,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
 
     const novoCarrinho = o.itens.map(i => ({
       id: i.itemId.toString(),
-      nome: i.produto?.nome || `Kit ID ${i.itemId}`,
+      nome: i.nomeOriginal || i.produto?.nome || `Kit ID ${i.itemId}`,
       preco: i.precoOriginal,
       quantidade: i.quantidade,
       isKit: i.isKit,
@@ -191,7 +191,14 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
 
   const mudarDescontoItem = (idx: number, val: string) => {
     const novo = [...carrinho]
-    novo[idx].descontoItemPercentual = val === "" ? "" : parseFloat(val)
+    if (val === "") {
+      novo[idx].descontoItemPercentual = ""
+    } else {
+      let parsed = parseFloat(val)
+      if (parsed < 0) parsed = 0
+      if (parsed > 100) parsed = 100
+      novo[idx].descontoItemPercentual = parsed
+    }
     setCarrinho(novo)
   }
 
@@ -222,7 +229,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
       vendaIdExistente,
       cliente, telefone, descontoFinal: valorDesconto, total: totalLiquido, isOrcamento,
       carrinho: carrinho.map(c => ({
-        id: c.id, isKit: c.isKit, quantidade: c.quantidade, preco: c.preco, descontoItemPercentual: Number(c.descontoItemPercentual) || 0
+        id: c.id, nome: c.nome, isKit: c.isKit, quantidade: c.quantidade, preco: c.preco, descontoItemPercentual: Number(c.descontoItemPercentual) || 0
       }))
     }
     const res = await finalizarVenda(data)
@@ -313,7 +320,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Desc %</span>
-                      <input type="number" placeholder="0" value={item.descontoItemPercentual} onChange={e => mudarDescontoItem(i, e.target.value)} className="w-20 px-3 py-2 text-sm text-right bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold outline-none" />
+                      <input type="number" placeholder="0" min="0" max="100" value={item.descontoItemPercentual} onChange={e => mudarDescontoItem(i, e.target.value)} className="w-20 px-3 py-2 text-sm text-right bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold outline-none" />
                     </div>
                     <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
                       <button onClick={() => mudarQuantidade(i, -1)} className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded shadow-sm transition-colors text-slate-600 dark:text-slate-400"><Minus className="w-3.5 h-3.5" /></button>
@@ -347,7 +354,16 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
             </div>
             <div className="flex justify-between items-center text-base">
               <span className="text-slate-500 font-medium">Desconto Extra (%):</span>
-              <input type="number" placeholder="0" min="0" max="100" value={descontoGlobal} onChange={e => setDescontoGlobal(e.target.value === "" ? "" : parseFloat(e.target.value))} className="w-32 px-3 py-2 text-right bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-emerald-600 font-black text-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="number" placeholder="0" min="0" max="100" value={descontoGlobal} onChange={e => {
+                if (e.target.value === "") {
+                  setDescontoGlobal("");
+                } else {
+                  let val = parseFloat(e.target.value);
+                  if (val < 0) val = 0;
+                  if (val > 100) val = 100;
+                  setDescontoGlobal(val);
+                }
+              }} className="w-32 px-3 py-2 text-right bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-emerald-600 font-black text-lg outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
           </div>
 
