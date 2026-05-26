@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useDialogStore } from '@/store/useDialogStore'
 import { salvarProduto, salvarProdutoFabricado, toggleProdutoStatus, edicaoExpressaEstoque } from '@/actions/product'
 import { Package, Wrench, Edit2, Check, X, Search, Plus, Trash } from 'lucide-react'
+import { formatarMoeda } from '@/lib/utils'
 
 type Produto = {
   id: number;
@@ -77,6 +78,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   }
 
   const handleEdicaoExpressa = async (id: number, campo: 'quantidadeEstoque' | 'precoVenda', valor: number) => {
+    if (isNaN(valor)) return
     await edicaoExpressaEstoque(id, campo, valor)
     router.refresh()
   }
@@ -301,7 +303,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                             <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                               <td className="px-2 py-1 truncate max-w-[120px]">{item.nome}</td>
                               <td className="px-2 py-1 w-12">{item.quantidade}</td>
-                              <td className="px-2 py-1 text-right text-slate-400">R$ {(item.preco * parseFloat(item.quantidade)).toFixed(2)}</td>
+                              <td className="px-2 py-1 text-right text-slate-400">{formatarMoeda(item.preco * parseFloat(item.quantidade))}</td>
                               <td className="px-2 py-1 text-right">
                                 <button onClick={() => removeInsumo(idx)} className="text-red-400 hover:text-red-600"><Trash className="w-3 h-3" /></button>
                               </td>
@@ -325,7 +327,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
             <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4 mt-4">
               <div>
                 <span className="text-xs text-slate-400 block uppercase tracking-wider mb-1">Preço Sugerido Unid:</span>
-                <span className="text-xl font-black text-slate-800 dark:text-white">R$ {precoSugeridoFab.toFixed(2)}</span>
+                <span className="text-xl font-black text-slate-800 dark:text-white">{formatarMoeda(precoSugeridoFab)}</span>
               </div>
               <div className="flex gap-2">
                 {fIdEdicao && (

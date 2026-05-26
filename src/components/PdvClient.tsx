@@ -6,6 +6,7 @@ import { finalizarVenda, buscarOrcamentoPorId } from '@/actions/sale'
 import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2 } from 'lucide-react'
 import { useDialogStore } from '@/store/useDialogStore'
 import { PatternFormat } from 'react-number-format'
+import { formatarMoeda } from '@/lib/utils'
 
 type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number }
 type Kit = { id: number, nome: string, precoVenda: number }
@@ -98,10 +99,10 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     txt += `\n*ITENS:*\n`;
     dados.carrinho.forEach((c: any) => {
       const sub = c.preco * c.quantidade * (1 - (Number(c.descontoItemPercentual) || 0) / 100);
-      txt += `- ${c.quantidade}x ${c.nome} | R$ ${sub.toFixed(2)}\n`;
+      txt += `- ${c.quantidade}x ${c.nome} | ${formatarMoeda(sub)}\n`;
     });
-    if (dados.descontoFinal > 0) txt += `\nDesconto Extra: -R$ ${dados.descontoFinal.toFixed(2)}`;
-    txt += `\n*TOTAL: R$ ${dados.total.toFixed(2)}*\n`;
+    if (dados.descontoFinal > 0) txt += `\nDesconto Extra: -${formatarMoeda(dados.descontoFinal)}`;
+    txt += `\n*TOTAL: ${formatarMoeda(dados.total)}*\n`;
     txt += `\nAgradecemos a preferência!`;
     return txt;
   }
@@ -296,8 +297,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
             <div className="flex-2 w-full flex gap-2">
               <select value={produtoSelecionado} onChange={e => setProdutoSelecionado(e.target.value)} className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
                 <option value="">Selecione na lista...</option>
-                {produtos.map(p => <option key={`p-${p.id}`} value={`p-${p.id}`}>📦 [ID {p.id}] {p.nome} - R$ {p.precoVenda.toFixed(2)}</option>)}
-                {kits.map(k => <option key={`k-${k.id}`} value={`k-${k.id}`}>🎁 [ID {k.id}] {k.nome} - R$ {k.precoVenda.toFixed(2)}</option>)}
+                {produtos.map(p => <option key={`p-${p.id}`} value={`p-${p.id}`}>📦 [ID {p.id}] {p.nome} - {formatarMoeda(p.precoVenda)}</option>)}
+                {kits.map(k => <option key={`k-${k.id}`} value={`k-${k.id}`}>🎁 [ID {k.id}] {k.nome} - {formatarMoeda(k.precoVenda)}</option>)}
               </select>
               <button onClick={() => { adicionarProduto(produtoSelecionado); setProdutoSelecionado(""); }} className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-lg transition-colors">
                 <Plus className="w-5 h-5" />
@@ -317,7 +318,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <div key={`${item.id}-${item.isKit}`} className="flex flex-col sm:flex-row gap-3 items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.isKit ? '🎁' : '📦'} {item.nome}</p>
-                    <p className="text-xs text-slate-500">R$ {item.preco.toFixed(2)} unitário</p>
+                    <p className="text-xs text-slate-500">{formatarMoeda(item.preco)} unitário</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">
@@ -352,7 +353,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
           <div className="space-y-4 mb-6">
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-500">Subtotal:</span>
-              <span className="font-semibold dark:text-slate-300">R$ {totalBruto.toFixed(2)}</span>
+              <span className="font-semibold dark:text-slate-300">{formatarMoeda(totalBruto)}</span>
             </div>
             <div className="flex justify-between items-center text-base">
               <span className="text-slate-500 font-medium">Desconto Extra (%):</span>
@@ -374,7 +375,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
               <div className="flex justify-between items-end">
                 <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Total a Pagar</span>
                 <span className="text-3xl font-black text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-xl">
-                  R$ {totalLiquido.toFixed(2)}
+                  {formatarMoeda(totalLiquido)}
                 </span>
               </div>
             </div>
@@ -533,7 +534,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">R$ {o.total.toFixed(2)}</div>
+                          <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(o.total)}</div>
                         </div>
                         <button onClick={() => handleSelecionarOrcamento(o.id)} className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-lg transition-colors text-sm">
                           Carregar

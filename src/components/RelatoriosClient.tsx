@@ -100,7 +100,18 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
   })
 
   const formatarData = (d: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(d))
+    const dateObj = new Date(d)
+    try {
+      return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(dateObj)
+    } catch (e) {
+      const pad = (n: number) => n.toString().padStart(2, '0')
+      const day = pad(dateObj.getDate())
+      const month = pad(dateObj.getMonth() + 1)
+      const year = dateObj.getFullYear().toString().slice(-2)
+      const hours = pad(dateObj.getHours())
+      const minutes = pad(dateObj.getMinutes())
+      return `${day}/${month}/${year} ${hours}:${minutes}`
+    }
   }
 
   return (
