@@ -16,10 +16,10 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsO
   const isAdmin = user?.nivel === 'administrador'
 
   const links = [
-    { id: 'pdv' as TabId, label: 'PDV / Vendas', icon: ShoppingCart, adminOnly: false },
-    { id: 'estoque' as TabId, label: 'Estoque & Produção', icon: Package, adminOnly: true },
+    { id: 'pdv' as TabId, label: 'PDV', icon: ShoppingCart, adminOnly: false },
+    { id: 'estoque' as TabId, label: 'Estoque', icon: Package, adminOnly: true },
     { id: 'kits' as TabId, label: 'Montar Kits', icon: Gift, adminOnly: true },
-    { id: 'relatorios' as TabId, label: 'Relatórios & Filtros', icon: BarChart2, adminOnly: true },
+    { id: 'relatorios' as TabId, label: 'Relatórios', icon: BarChart2, adminOnly: true },
     { id: 'usuarios' as TabId, label: 'Usuários', icon: Users, adminOnly: true },
   ]
 

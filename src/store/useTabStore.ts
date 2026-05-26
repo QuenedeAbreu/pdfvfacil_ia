@@ -26,21 +26,21 @@ export const useTabStore = create<TabState>((set) => ({
   setOrcamentoIdParaCarregar: (id) => set({ orcamentoIdParaCarregar: id }),
   openTab: (id) => set((state) => {
     const labels: Record<TabId, string> = {
-      pdv: 'PDV / Vendas',
-      estoque: 'Estoque & Produção',
+      pdv: 'PDV ',
+      estoque: 'Estoque',
       kits: 'Montar Kits',
-      relatorios: 'Relatórios & Filtros',
+      relatorios: 'Relatórios',
       usuarios: 'Usuários'
     }
     const alreadyOpen = state.openTabs.some(t => t.id === id)
-    const newTabs = alreadyOpen 
-      ? state.openTabs 
+    const newTabs = alreadyOpen
+      ? state.openTabs
       : [...state.openTabs, { id, label: labels[id] }]
-    
+
     // Update the browser URL without unmounting/reloading
     const tabParam = id === 'pdv' ? '' : `?tab=${id}`
     window.history.pushState(null, '', `/pdv${tabParam}`)
-    
+
     return {
       openTabs: newTabs,
       activeTabId: id
@@ -52,7 +52,7 @@ export const useTabStore = create<TabState>((set) => ({
     if (state.activeTabId === id && newTabs.length > 0) {
       newActiveId = newTabs[newTabs.length - 1].id
     }
-    
+
     const activeId = newTabs.length > 0 ? newActiveId : 'pdv'
     const tabParam = activeId === 'pdv' ? '' : `?tab=${activeId}`
     window.history.pushState(null, '', `/pdv${tabParam}`)
