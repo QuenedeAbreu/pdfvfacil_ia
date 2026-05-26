@@ -1,13 +1,12 @@
 "use client"
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ShoppingCart, Package, Gift, BarChart2, Users, LayoutDashboard } from 'lucide-react'
+import { ShoppingCart, Package, Gift, BarChart2, Users } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
+import { useTabStore, TabId } from '@/store/useTabStore'
 
 export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: boolean) => void }) {
-  const pathname = usePathname()
+  const { openTab, activeTabId } = useTabStore()
   const { data: session } = useSession()
   const user = session?.user as any
   const [mounted, setMounted] = useState(false)
@@ -17,11 +16,11 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsO
   const isAdmin = user?.nivel === 'administrador'
 
   const links = [
-    { href: '/pdv', label: 'PDV / Vendas', icon: ShoppingCart, adminOnly: false },
-    { href: '/estoque', label: 'Estoque & Produção', icon: Package, adminOnly: true },
-    { href: '/kits', label: 'Montar Kits', icon: Gift, adminOnly: true },
-    { href: '/relatorios', label: 'Relatórios & Filtros', icon: BarChart2, adminOnly: true },
-    { href: '/usuarios', label: 'Usuários', icon: Users, adminOnly: true },
+    { id: 'pdv' as TabId, label: 'PDV / Vendas', icon: ShoppingCart, adminOnly: false },
+    { id: 'estoque' as TabId, label: 'Estoque & Produção', icon: Package, adminOnly: true },
+    { id: 'kits' as TabId, label: 'Montar Kits', icon: Gift, adminOnly: true },
+    { id: 'relatorios' as TabId, label: 'Relatórios & Filtros', icon: BarChart2, adminOnly: true },
+    { id: 'usuarios' as TabId, label: 'Usuários', icon: Users, adminOnly: true },
   ]
 
   if (!mounted) return null
@@ -50,22 +49,24 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsO
             {links.map((link) => {
               if (link.adminOnly && !isAdmin) return null
 
-              const isActive = pathname.startsWith(link.href)
+              const isActive = activeTabId === link.id
               const Icon = link.icon
 
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${isActive
+                <button
+                  key={link.id}
+                  onClick={() => {
+                    openTab(link.id)
+                    setIsOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-left ${isActive
                     ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 font-medium'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white'
                     }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-sm">{link.label}</span>
-                </Link>
+                </button>
               )
             })}
           </nav>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useDialogStore } from '@/store/useDialogStore'
 import { salvarProduto, salvarProdutoFabricado, toggleProdutoStatus, edicaoExpressaEstoque } from '@/actions/product'
 import { Package, Wrench, Edit2, Check, X, Search, Plus, Trash } from 'lucide-react'
@@ -29,6 +30,7 @@ type Produto = {
 }
 
 export default function EstoqueClient({ produtos, insumos }: { produtos: Produto[], insumos: Produto[] }) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'simples' | 'personalizado'>('simples')
   const { showAlert, showConfirm } = useDialogStore()
 
@@ -38,10 +40,10 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const [pCategoria, setPCategoria] = useState("Cosméticos")
   const [pNf, setPNf] = useState("")
   const [pMedida, setPMedida] = useState("un")
-  const [pQtd, setPQtd] = useState("1.00")
-  const [pCusto, setPCusto] = useState("0.00")
-  const [pLucro, setPLucro] = useState("50.00")
-  const [pVenda, setPVenda] = useState("0.00")
+  const [pQtd, setPQtd] = useState("1")
+  const [pCusto, setPCusto] = useState("")
+  const [pLucro, setPLucro] = useState("50")
+  const [pVenda, setPVenda] = useState("")
   const [pIsServico, setPIsServico] = useState(false)
   const [loadingP, setLoadingP] = useState(false)
 
@@ -49,10 +51,10 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const [fIdEdicao, setFIdEdicao] = useState("")
   const [fNome, setFNome] = useState("")
   const [fCategoria, setFCategoria] = useState("Papelaria")
-  const [fQtdEstoque, setFQtdEstoque] = useState("1.00")
+  const [fQtdEstoque, setFQtdEstoque] = useState("1")
   const [composicao, setComposicao] = useState<{ id: string, nome: string, quantidade: string, preco: number }[]>([])
   const [insumoSelecionado, setInsumoSelecionado] = useState("")
-  const [insumoQtd, setInsumoQtd] = useState("1.00")
+  const [insumoQtd, setInsumoQtd] = useState("1")
   const [fTempo, setFTempo] = useState("")
   const [fCustoHora, setFCustoHora] = useState("")
   const [fOutros, setFOutros] = useState("")
@@ -66,7 +68,17 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
     const q = parseFloat(qtdStr) || 1
     const unitCusto = c / q
     const venda = unitCusto + (unitCusto * (l / 100))
-    setPVenda(venda.toFixed(2))
+    setPVenda(venda > 0 ? (Math.round(venda * 100) / 100).toString() : "")
+  }
+
+  const handleToggleStatus = async (id: number, ativo: boolean) => {
+    await toggleProdutoStatus(id, ativo)
+    router.refresh()
+  }
+
+  const handleEdicaoExpressa = async (id: number, campo: 'quantidadeEstoque' | 'precoVenda', valor: number) => {
+    await edicaoExpressaEstoque(id, campo, valor)
+    router.refresh()
   }
 
   const handleSalvarSimples = async (e: React.FormEvent) => {
@@ -89,6 +101,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
     else {
       showAlert("Salvo com sucesso!")
       limparFormSimples()
+      router.refresh()
     }
     setLoadingP(false)
   }
@@ -96,7 +109,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
 
   const limparFormSimples = () => {
     setPIdEdicao(""); setPNome(""); setPCategoria("Cosméticos"); setPNf(""); setPMedida("un")
-    setPQtd("1.00"); setPCusto("0.00"); setPLucro("50.00"); setPVenda("0.00"); setPIsServico(false)
+    setPQtd("1"); setPCusto(""); setPLucro("50"); setPVenda(""); setPIsServico(false)
   }
 
   // Lógica Fabricado
@@ -115,7 +128,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
       preco: custoUnit
     }])
     setInsumoSelecionado("")
-    setInsumoQtd("1.00")
+    setInsumoQtd("1")
   }
 
   const removeInsumo = (idx: number) => {
@@ -151,12 +164,13 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
     else {
       showAlert("Salvo com sucesso!")
       limparFormFab()
+      router.refresh()
     }
     setLoadingF(false)
   }
 
   const limparFormFab = () => {
-    setFIdEdicao(""); setFNome(""); setFCategoria("Papelaria"); setFQtdEstoque("1.00")
+    setFIdEdicao(""); setFNome(""); setFCategoria("Papelaria"); setFQtdEstoque("1")
     setComposicao([]); setFTempo(""); setFCustoHora(""); setFOutros(""); setFLucro("")
   }
 
@@ -370,7 +384,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button onClick={() => toggleProdutoStatus(p.id, p.ativo)} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${p.ativo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
+                    <button onClick={() => handleToggleStatus(p.id, p.ativo)} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${p.ativo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
                       {p.ativo ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                       {p.ativo ? 'Ativo' : 'Inativo'}
                     </button>
@@ -379,11 +393,11 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     {p.isServico ? (
                       <span className="text-slate-400 font-mono text-xs">N/A</span>
                     ) : (
-                      <input type="number" step="0.01" defaultValue={p.quantidadeEstoque.toFixed(2)} onBlur={(e) => edicaoExpressaEstoque(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                      <input type="number" step="0.01" defaultValue={p.quantidadeEstoque} onBlur={(e) => handleEdicaoExpressa(p.id, 'quantidadeEstoque', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                    <input type="number" step="0.01" defaultValue={p.precoVenda.toFixed(2)} onBlur={(e) => edicaoExpressaEstoque(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
+                    <input type="number" step="0.01" defaultValue={p.precoVenda} onBlur={(e) => handleEdicaoExpressa(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => {
@@ -393,19 +407,19 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setFIdEdicao(p.id.toString())
                         setFNome(p.nome)
                         setFCategoria(p.categoria || "Papelaria")
-                        setFQtdEstoque(p.quantidadeEstoque.toFixed(2))
-                        setFLucro(p.percentualLucro.toFixed(2))
+                        setFQtdEstoque(p.quantidadeEstoque.toString())
+                        setFLucro(p.percentualLucro.toString())
 
                         const comp = p.produtosFabricados.map(pf => ({
                           id: pf.insumoId.toString(),
                           nome: pf.insumo.nome,
-                          quantidade: pf.quantidade.toFixed(2),
+                          quantidade: pf.quantidade.toString(),
                           preco: pf.insumo.precoVenda || 0
                         }))
                         setComposicao(comp)
-                        setFTempo(p.tempoProducao ? p.tempoProducao.toFixed(2) : "")
-                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toFixed(2) : "")
-                        setFOutros(p.outrosCustos ? p.outrosCustos.toFixed(2) : "")
+                        setFTempo(p.tempoProducao ? p.tempoProducao.toString() : "")
+                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toString() : "")
+                        setFOutros(p.outrosCustos ? p.outrosCustos.toString() : "")
                       } else {
                         // Edição simples
                         setActiveTab('simples')
@@ -414,10 +428,10 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setPCategoria(p.categoria || "Cosméticos")
                         setPNf(p.codNotaFiscal || "")
                         setPMedida(p.tipoQuantidade || "un")
-                        setPQtd(p.quantidadeEstoque.toFixed(2))
-                        setPCusto(p.precoCompra.toFixed(2))
-                        setPLucro(p.percentualLucro.toFixed(2))
-                        setPVenda(p.precoVenda.toFixed(2))
+                        setPQtd(p.quantidadeEstoque.toString())
+                        setPCusto(p.precoCompra.toString())
+                        setPLucro(p.percentualLucro.toString())
+                        setPVenda(p.precoVenda.toString())
                         setPIsServico(p.isServico || false)
                       }
                       window.scrollTo({ top: 0, behavior: 'smooth' })

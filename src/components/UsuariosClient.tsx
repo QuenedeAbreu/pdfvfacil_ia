@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { criarUsuario, toggleUserStatus, updateUser } from '@/actions/user'
 import { Users, UserPlus, Edit2, ShieldAlert, Check, X } from 'lucide-react'
 import { useDialogStore } from '@/store/useDialogStore'
@@ -14,6 +15,7 @@ type Usuario = {
 }
 
 export default function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
+  const router = useRouter()
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
   const [senha, setSenha] = useState("")
@@ -25,6 +27,11 @@ export default function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
   const [usuarioEditar, setUsuarioEditar] = useState<Usuario | null>(null)
   const [editEmail, setEditEmail] = useState("")
   const [editSenha, setEditSenha] = useState("")
+
+  const handleToggleUserStatus = async (id: number, ativo: boolean) => {
+    await toggleUserStatus(id, ativo)
+    router.refresh()
+  }
 
   const handleCriarUsuario = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +51,7 @@ export default function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
       setEmail("")
       setSenha("")
       setNivel("vendedor")
+      router.refresh()
     }
     setLoading(false)
   }
@@ -56,6 +64,7 @@ export default function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
     else {
       showAlert("Usuário atualizado com sucesso!")
       setUsuarioEditar(null)
+      router.refresh()
     }
     setLoading(false)
   }
@@ -136,7 +145,7 @@ export default function UsuariosClient({ usuarios }: { usuarios: Usuario[] }) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button onClick={() => toggleUserStatus(u.id, u.ativo)} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold transition-colors ${u.ativo ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-red-500/10 dark:hover:text-red-400' : 'bg-red-100 text-red-700 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400'}`}>
+                    <button onClick={() => handleToggleUserStatus(u.id, u.ativo)} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold transition-colors ${u.ativo ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-red-500/10 dark:hover:text-red-400' : 'bg-red-100 text-red-700 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400'}`}>
                       {u.ativo ? <Check className="w-3 h-3"/> : <X className="w-3 h-3"/>}
                       {u.ativo ? 'Ativo' : 'Bloqueado'}
                     </button>

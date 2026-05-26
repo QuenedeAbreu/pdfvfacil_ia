@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { salvarKit, excluirKit } from '@/actions/kit'
 import { useDialogStore } from '@/store/useDialogStore'
 import { Gift, Plus, Trash, Search, Pencil } from 'lucide-react'
+import { formatarMoeda } from '@/lib/utils'
 
 type Produto = {
   id: number;
@@ -26,6 +28,7 @@ type Kit = {
 }
 
 export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: Produto[] }) {
+  const router = useRouter()
   const [idEdicao, setIdEdicao] = useState("")
   const [nomeKit, setNomeKit] = useState("")
   const [composicao, setComposicao] = useState<{ id: string, nome: string, quantidade: string, precoVenda: number }[]>([])
@@ -33,8 +36,8 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   const [produtoSelecionado, setProdutoSelecionado] = useState("")
   const [produtoQtd, setProdutoQtd] = useState("1")
   
-  const [descontoPercentual, setDescontoPercentual] = useState("0")
-  const [precoSugeridoSoma, setPrecoSugeridoSoma] = useState("0")
+  const [descontoPercentual, setDescontoPercentual] = useState("")
+  const [precoSugeridoSoma, setPrecoSugeridoSoma] = useState("")
   
   const [loading, setLoading] = useState(false)
   const { showAlert, showConfirm } = useDialogStore()
@@ -68,7 +71,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     const somaTotal = comp.reduce((acc, curr) => acc + (curr.precoVenda * parseFloat(curr.quantidade)), 0)
     const desc = parseFloat(descontoStr) || 0
     const finalPrice = somaTotal - (somaTotal * (desc / 100))
-    setPrecoSugeridoSoma(finalPrice.toFixed(2))
+    setPrecoSugeridoSoma(finalPrice > 0 ? (Math.round(finalPrice * 100) / 100).toString() : "")
   }
 
   const handleDescontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,15 +89,15 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
 
   const handlePrecoManualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPrecoSugeridoSoma(e.target.value)
-    setDescontoPercentual("0") // Zera o desconto percentual se o usuário digitar o preço manualmente
+    setDescontoPercentual("") // Zera o desconto percentual se o usuário digitar o preço manualmente
   }
 
   const limparFormKit = () => {
     setIdEdicao("")
     setNomeKit("")
     setComposicao([])
-    setDescontoPercentual("0")
-    setPrecoSugeridoSoma("0")
+    setDescontoPercentual("")
+    setPrecoSugeridoSoma("")
     setProdutoSelecionado("")
     setProdutoQtd("1")
   }
@@ -113,11 +116,11 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     const somaTotal = comp.reduce((acc, curr) => acc + (curr.precoVenda * parseFloat(curr.quantidade)), 0)
     if (somaTotal > 0) {
       const desc = ((somaTotal - kit.precoVenda) / somaTotal) * 100
-      setDescontoPercentual(desc > 0 ? desc.toFixed(2) : "0")
+      setDescontoPercentual(desc > 0 ? (Math.round(desc * 100) / 100).toString() : "")
     } else {
-      setDescontoPercentual("0")
+      setDescontoPercentual("")
     }
-    setPrecoSugeridoSoma(kit.precoVenda.toFixed(2))
+    setPrecoSugeridoSoma(kit.precoVenda.toString())
   }
 
   const handleExcluirKit = async (id: number) => {
@@ -132,6 +135,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
       if (idEdicao === id.toString()) {
         limparFormKit()
       }
+      router.refresh()
     }
   }
 
@@ -149,6 +153,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     else {
       showAlert(idEdicao ? "Kit atualizado com sucesso!" : "Kit salvo com sucesso!")
       limparFormKit()
+      router.refresh()
     }
     setLoading(false)
   }
@@ -220,7 +225,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
         <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5 mt-6 gap-2">
           <div>
             <span className="text-xs text-slate-400 block uppercase tracking-wider mb-1">Preço do Kit:</span>
-            <span className="text-2xl font-black text-slate-800 dark:text-white">R$ {parseFloat(precoSugeridoSoma || "0").toFixed(2)}</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-white">{formatarMoeda(precoSugeridoSoma || "0")}</span>
           </div>
           <div className="flex gap-2">
             {idEdicao && (
@@ -273,7 +278,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
                     </div>
                   </td>
                   <td className="px-4 py-4 text-right font-black text-purple-600 dark:text-purple-400">
-                    R$ {k.precoVenda.toFixed(2)}
+                    {formatarMoeda(k.precoVenda)}
                   </td>
                   <td className="px-4 py-4 text-center">
                     <div className="flex justify-center gap-2">

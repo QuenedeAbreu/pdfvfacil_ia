@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { finalizarVenda, buscarOrcamentoPorId } from '@/actions/sale'
 import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2 } from 'lucide-react'
 import { useDialogStore } from '@/store/useDialogStore'
@@ -12,6 +13,8 @@ type CarrinhoItem = { id: string, nome: string, preco: number, quantidade: numbe
 type OrcamentoBasico = { id: number, cliente: string | null, total: number, dataVenda: Date }
 
 export default function PdvClient({ produtos, kits, orcamentos = [] }: { produtos: Produto[], kits: Kit[], orcamentos?: OrcamentoBasico[] }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([])
   const [cliente, setCliente] = useState("")
   const [telefone, setTelefone] = useState("")
@@ -35,16 +38,14 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const totalPaginas = Math.ceil(orcamentosFiltrados.length / itensPorPagina)
   const orcamentosPaginados = orcamentosFiltrados.slice((paginaOrcamento - 1) * itensPorPagina, paginaOrcamento * itensPorPagina)
 
+  const orcamentoId = searchParams.get('orcamentoId')
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const id = params.get('orcamentoId')
-      if (id) {
-        carregarOrcamentoPorId(id)
-        window.history.replaceState(null, '', '/pdv')
-      }
+    if (orcamentoId) {
+      carregarOrcamentoPorId(orcamentoId)
+      window.history.replaceState(null, '', '/pdv')
     }
-  }, [])
+  }, [orcamentoId])
 
   const carregarOrcamentoPorId = async (id: string) => {
     setLoading(true);
@@ -253,6 +254,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
       setTelefone("")
       setDescontoGlobal("")
       setVendaIdExistente(undefined)
+      router.refresh()
       setModalConfirmacao(null)
     }
     setLoading(false)
