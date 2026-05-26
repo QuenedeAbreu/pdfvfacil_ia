@@ -32,7 +32,7 @@ type Venda = {
 
 export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
   const router = useRouter()
-  const { openTab } = useTabStore()
+  const { openTab, setOrcamentoIdParaCarregar } = useTabStore()
   const [filtroTipo, setFiltroTipo] = useState("todos")
   const [filtroDataInicio, setFiltroDataInicio] = useState("")
   const [filtroDataFim, setFiltroDataFim] = useState("")
@@ -53,8 +53,9 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
   }
 
   const handleConverter = (id: number) => {
-    window.history.pushState(null, '', `/pdv?orcamentoId=${id}`)
+    setOrcamentoIdParaCarregar(id)
     openTab('pdv')
+    setVendaSelecionada(null) // Automatically close the modal when editing budget
   }
 
   const handleCancelarVenda = (id: number) => {

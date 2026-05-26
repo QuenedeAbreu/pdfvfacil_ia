@@ -7,6 +7,7 @@ import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2 } from 'l
 import { useDialogStore } from '@/store/useDialogStore'
 import { PatternFormat } from 'react-number-format'
 import { formatarMoeda } from '@/lib/utils'
+import { useTabStore } from '@/store/useTabStore'
 
 type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number, codNotaFiscal?: string | null }
 type Kit = { id: number, nome: string, precoVenda: number }
@@ -25,6 +26,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const [dropdownAberto, setDropdownAberto] = useState(false)
   const [filtroPesquisa, setFiltroPesquisa] = useState("")
   const [loading, setLoading] = useState(false)
+  const { orcamentoIdParaCarregar, setOrcamentoIdParaCarregar } = useTabStore()
   const { showAlert } = useDialogStore()
   const [vendaIdExistente, setVendaIdExistente] = useState<number | undefined>(undefined)
   const [modalResumo, setModalResumo] = useState<{ visible: boolean, dados: any } | null>(null)
@@ -77,9 +79,16 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   useEffect(() => {
     if (orcamentoId) {
       carregarOrcamentoPorId(orcamentoId)
-      window.history.replaceState(null, '', '/pdv')
+      router.replace('/pdv')
     }
-  }, [orcamentoId])
+  }, [orcamentoId, router])
+
+  useEffect(() => {
+    if (orcamentoIdParaCarregar) {
+      carregarOrcamentoPorId(orcamentoIdParaCarregar.toString())
+      setOrcamentoIdParaCarregar(null)
+    }
+  }, [orcamentoIdParaCarregar, setOrcamentoIdParaCarregar])
 
   const carregarOrcamentoPorId = async (id: string) => {
     setLoading(true);
@@ -122,7 +131,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     setTelefone("");
     setDescontoGlobal("");
     setCarrinho([]);
-    window.history.replaceState(null, '', '/pdv');
+    router.replace('/pdv');
   }
 
   const gerarTextoResumo = (dados: any) => {
@@ -262,6 +271,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     setCarrinho(novo)
   }
 
+
   const removerItem = (idx: number) => {
     const novo = [...carrinho]
     novo.splice(idx, 1)
@@ -360,7 +370,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                   className="w-full text-left px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm flex items-center justify-between min-h-[38px] cursor-pointer"
                 >
                   <span className="truncate">
-                    {itemSelecionadoObj 
+                    {itemSelecionadoObj
                       ? `${itemSelecionadoObj.type === 'p' ? '📦' : '🎁'} [ID ${itemSelecionadoObj.id}] ${itemSelecionadoObj.nome} - ${formatarMoeda(itemSelecionadoObj.precoVenda)}`
                       : "Selecione na lista..."}
                   </span>
@@ -438,7 +448,14 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <div key={`${item.id}-${item.isKit}`} className="flex flex-col sm:flex-row gap-3 items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.isKit ? '🎁' : '📦'} {item.nome}</p>
-                    <p className="text-xs text-slate-500">{formatarMoeda(item.preco)} unitário</p>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                        {formatarMoeda(item.preco)}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+                        un.
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">

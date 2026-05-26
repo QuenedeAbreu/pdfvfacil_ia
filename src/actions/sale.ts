@@ -145,18 +145,16 @@ export async function buscarOrcamentoPorId(id: number) {
     return { error: "Orçamento não encontrado ou já convertido em venda." };
   }
 
-  // Para orçamentos, nós sempre carregamos os preços e nomes atuais do estoque
+  // Para orçamentos, nós sempre carregamos os nomes atuais do estoque mas mantemos o preço do orçamento
   for (const item of orcamento.itens) {
     if (!item.isKit) {
       const prod = await prisma.product.findUnique({ where: { id: item.itemId } });
       if (prod) {
-        item.precoOriginal = prod.precoVenda;
         item.nomeOriginal = prod.nome;
       }
     } else {
       const kit = await prisma.kit.findUnique({ where: { id: item.itemId } });
       if (kit) {
-        item.precoOriginal = kit.precoVenda;
         item.nomeOriginal = kit.nome;
       }
     }

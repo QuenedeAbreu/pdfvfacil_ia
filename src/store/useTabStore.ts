@@ -13,6 +13,8 @@ type TabState = {
   openTab: (id: TabId) => void
   closeTab: (id: TabId) => void
   setActiveTabId: (id: TabId) => void
+  orcamentoIdParaCarregar: number | null
+  setOrcamentoIdParaCarregar: (id: number | null) => void
 }
 
 export const useTabStore = create<TabState>((set) => ({
@@ -20,6 +22,8 @@ export const useTabStore = create<TabState>((set) => ({
     { id: 'pdv', label: 'PDV / Vendas' }
   ],
   activeTabId: 'pdv',
+  orcamentoIdParaCarregar: null,
+  setOrcamentoIdParaCarregar: (id) => set({ orcamentoIdParaCarregar: id }),
   openTab: (id) => set((state) => {
     const labels: Record<TabId, string> = {
       pdv: 'PDV / Vendas',
