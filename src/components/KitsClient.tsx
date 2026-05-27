@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { salvarKit, excluirKit } from '@/actions/kit'
 import { useDialogStore } from '@/store/useDialogStore'
-import { Gift, Plus, Trash, Search, Pencil } from 'lucide-react'
+import { Gift, Plus, Trash, Search, Pencil, Eye, X } from 'lucide-react'
 import { formatarMoeda } from '@/lib/utils'
 
 type Produto = {
@@ -160,6 +160,18 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
 
   const kitsFiltrados = kits.filter(k => k.nome.toLowerCase().includes(termoBusca.toLowerCase()) || k.id.toString() === termoBusca)
 
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const itensPorPagina = 10
+  const [kitDetalhes, setKitDetalhes] = useState<Kit | null>(null)
+  
+  useEffect(() => {
+    setPaginaAtual(1)
+  }, [termoBusca])
+
+  const totalPaginas = Math.max(1, Math.ceil(kitsFiltrados.length / itensPorPagina))
+  const startIndex = (paginaAtual - 1) * itensPorPagina
+  const kitsPaginados = kitsFiltrados.slice(startIndex, startIndex + itensPorPagina)
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
@@ -198,6 +210,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
                         <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                           <td className="px-3 py-2 truncate max-w-[150px] font-medium text-slate-700 dark:text-slate-300">{item.nome}</td>
                           <td className="px-3 py-2 w-12 text-center">{item.quantidade}x</td>
+                          <td className="px-3 py-2 text-right text-slate-500">{formatarMoeda(item.precoVenda)}</td>
                           <td className="px-3 py-2 text-right">
                             <button onClick={()=>removerProdutoKit(idx)} className="text-red-400 hover:text-red-600"><Trash className="w-3.5 h-3.5" /></button>
                           </td>
@@ -258,30 +271,27 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
               <tr>
                 <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Nome do Kit</th>
-                <th className="px-4 py-3 text-left">Produtos Inclusos</th>
+                <th className="px-4 py-3 text-center">Qtd. Itens</th>
                 <th className="px-4 py-3 text-right">Preço de Venda</th>
                 <th className="px-4 py-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
-              {kitsFiltrados.map(k => (
+              {kitsPaginados.map(k => (
                 <tr key={k.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="px-4 py-4 font-mono text-xs">{k.id}</td>
                   <td className="px-4 py-4 font-bold">{k.nome}</td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {k.itens.map((item, idx) => (
-                        <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-md text-xs border border-slate-200 dark:border-slate-700/50">
-                          {item.quantidade}x {item.produto.nome}
-                        </span>
-                      ))}
-                    </div>
+                  <td className="px-4 py-4 text-center font-medium text-slate-500">
+                    {k.itens.reduce((acc, item) => acc + Number(item.quantidade), 0)} itens
                   </td>
                   <td className="px-4 py-4 text-right font-black text-purple-600 dark:text-purple-400">
                     {formatarMoeda(k.precoVenda)}
                   </td>
                   <td className="px-4 py-4 text-center">
                     <div className="flex justify-center gap-2">
+                      <button onClick={() => setKitDetalhes(k)} className="p-1.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Ver Detalhes">
+                        <Eye className="w-4.5 h-4.5" />
+                      </button>
                       <button onClick={() => handleEditarKit(k)} className="p-1.5 text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Editar Kit">
                         <Pencil className="w-4.5 h-4.5" />
                       </button>
@@ -300,7 +310,89 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
             </tbody>
           </table>
         </div>
+
+        {/* Paginação */}
+        {totalPaginas > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 gap-4">
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              Mostrando {startIndex + 1} a {Math.min(startIndex + itensPorPagina, kitsFiltrados.length)} de {kitsFiltrados.length} kits
+            </span>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setPaginaAtual(prev => Math.max(prev - 1, 1))}
+                disabled={paginaAtual === 1}
+                className="px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Anterior
+              </button>
+              <div className="flex items-center px-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                Página {paginaAtual} de {totalPaginas}
+              </div>
+              <button 
+                onClick={() => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas))}
+                disabled={paginaAtual === totalPaginas}
+                className="px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Modal de Detalhes do Kit */}
+      {kitDetalhes && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Gift className="w-5 h-5 text-purple-500" />
+                Detalhes do Kit
+              </h3>
+              <button onClick={() => setKitDetalhes(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+              <h4 className="text-xl font-black text-slate-800 dark:text-white mb-6">{kitDetalhes.nome}</h4>
+              
+              <div className="mb-6 flex justify-between items-center bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800">
+                <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">Preço Final de Venda</span>
+                <span className="text-xl font-black text-purple-600 dark:text-purple-400">{formatarMoeda(kitDetalhes.precoVenda)}</span>
+              </div>
+              
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Produtos Inclusos neste Kit</h4>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3">Produto</th>
+                      <th className="px-4 py-3 text-center">Qtd</th>
+                      <th className="px-4 py-3 text-right">Preço Unit.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900">
+                    {kitDetalhes.itens.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="px-4 py-3 font-medium">{item.produto.nome}</td>
+                        <td className="px-4 py-3 text-center">{item.quantidade}x</td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-500 dark:text-slate-400">{formatarMoeda(item.produto.precoVenda)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="p-4 sm:p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
+              <button onClick={() => setKitDetalhes(null)} className="px-6 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition-colors">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
