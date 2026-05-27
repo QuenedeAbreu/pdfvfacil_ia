@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDialogStore } from '@/store/useDialogStore'
 import { salvarProduto, salvarProdutoFabricado, toggleProdutoStatus, edicaoExpressaEstoque } from '@/actions/product'
-import { Package, Wrench, Edit2, Check, X, Search, Plus, Trash } from 'lucide-react'
+import { Package, Wrench, Edit2, Check, X, Search, Plus, Trash, Eye, Info, Hash, Tag, Activity, DollarSign, Percent, Box, Layers } from 'lucide-react'
 import { formatarMoeda } from '@/lib/utils'
 
 type Produto = {
@@ -34,6 +34,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'simples' | 'personalizado'>('simples')
   const { showAlert, showConfirm } = useDialogStore()
+  const [produtoDetalhesSelecionado, setProdutoDetalhesSelecionado] = useState<Produto | null>(null)
 
   const normalizeCategoria = (cat: string | null, def: string) => {
     if (!cat) return def
@@ -437,7 +438,11 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                     <input type="number" step="0.01" key={`pv-${p.id}-${p.precoVenda}`} defaultValue={p.precoVenda ? Number(p.precoVenda).toFixed(2) : "0.00"} onBlur={(e) => handleEdicaoExpressa(p.id, 'precoVenda', parseFloat(e.target.value))} className="w-20 px-2 py-1 text-right bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-emerald-500 outline-none" />
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button onClick={() => {
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => setProdutoDetalhesSelecionado(p)} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors" title="Ver Detalhes">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => {
                       if (p.produtosFabricados && p.produtosFabricados.length > 0) {
                         // Edição Personalizado
                         setActiveTab('personalizado')
@@ -472,9 +477,10 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         setPIsServico(p.isServico || false)
                       }
                       window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors">
+                    }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors" title="Editar">
                       <Edit2 className="w-4 h-4" />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -525,6 +531,189 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
           </div>
         </div>
       </div>
+
+      {/* MODAL DETALHES DO PRODUTO (PREMIUM COM HEADER CLEAN) */}
+      {produtoDetalhesSelecionado && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200/50 dark:border-slate-800/50 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Header Clean */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-emerald-600 dark:text-emerald-400 border border-slate-100 dark:border-slate-700">
+                  {produtoDetalhesSelecionado.produtosFabricados && produtoDetalhesSelecionado.produtosFabricados.length > 0 ? (
+                    <Wrench className="w-6 h-6" />
+                  ) : produtoDetalhesSelecionado.isServico ? (
+                    <Layers className="w-6 h-6" />
+                  ) : (
+                    <Package className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">{produtoDetalhesSelecionado.nome}</h3>
+                  <p className="text-slate-500 font-medium text-sm mt-0.5 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5" />
+                    {exibirCategoria(produtoDetalhesSelecionado.categoria)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Conteúdo Rolável Premium */}
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                
+                {/* Card Info Básica */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-shadow">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                    <Info className="w-4 h-4" /> Informações Principais
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400">
+                        <Hash className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">ID do Sistema</p>
+                        <p className="font-mono font-bold text-slate-700 dark:text-slate-300">#{produtoDetalhesSelecionado.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400">
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Status</p>
+                        {produtoDetalhesSelecionado.ativo ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">Ativo</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">Inativo</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
+                        <Box className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Estoque Disponível</p>
+                        {produtoDetalhesSelecionado.isServico ? (
+                          <p className="text-sm font-bold text-slate-500">N/A (Serviço)</p>
+                        ) : (
+                          <p className="font-black text-lg text-slate-800 dark:text-white">
+                            {produtoDetalhesSelecionado.quantidadeEstoque} <span className="text-sm font-medium text-slate-500">{produtoDetalhesSelecionado.tipoQuantidade || 'un'}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Valores e Lucro */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-shadow relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-bl-full -z-0"></div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5 relative z-10">
+                    <DollarSign className="w-4 h-4" /> Valores e Margem
+                  </h4>
+                  <div className="space-y-4 relative z-10">
+                    <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase">Preço de Venda</p>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(produtoDetalhesSelecionado.precoVenda)}</p>
+                      </div>
+                      <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600">
+                        <DollarSign className="w-6 h-6" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Custo Total / Lote</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-300">{formatarMoeda(produtoDetalhesSelecionado.precoCompra || 0)}</p>
+                      </div>
+                      <div className="w-px h-10 bg-slate-200 dark:bg-slate-700"></div>
+                      <div className="flex-1">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Margem / Lucro</p>
+                        <p className={`font-black flex items-center gap-1 ${produtoDetalhesSelecionado.percentualLucro < 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                          <Percent className="w-3.5 h-3.5" />
+                          {produtoDetalhesSelecionado.percentualLucro > 0 ? '+' : ''}{produtoDetalhesSelecionado.percentualLucro}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Seção Composição Personalizada */}
+              {produtoDetalhesSelecionado.produtosFabricados && produtoDetalhesSelecionado.produtosFabricados.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-amber-100 dark:border-amber-900/30">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-500">
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 dark:text-white">Receita / Composição do Produto</h4>
+                      <p className="text-xs text-slate-500">Custos adicionais e insumos utilizados na fabricação</p>
+                    </div>
+                  </div>
+                  
+                  {/* Custos Adicionais Grid */}
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-amber-50/50 dark:bg-amber-950/10 p-3 rounded-xl border border-amber-100/50 dark:border-amber-900/20 text-center">
+                      <p className="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 uppercase tracking-wider mb-1">Tempo Prod.</p>
+                      <p className="font-black text-amber-700 dark:text-amber-400 text-lg">{produtoDetalhesSelecionado.tempoProducao || 0} <span className="text-sm font-medium">min</span></p>
+                    </div>
+                    <div className="bg-amber-50/50 dark:bg-amber-950/10 p-3 rounded-xl border border-amber-100/50 dark:border-amber-900/20 text-center">
+                      <p className="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 uppercase tracking-wider mb-1">Custo/Hora</p>
+                      <p className="font-black text-amber-700 dark:text-amber-400 text-lg">{formatarMoeda(produtoDetalhesSelecionado.custoHoraProducao || 0)}</p>
+                    </div>
+                    <div className="bg-amber-50/50 dark:bg-amber-950/10 p-3 rounded-xl border border-amber-100/50 dark:border-amber-900/20 text-center">
+                      <p className="text-[10px] font-bold text-amber-600/70 dark:text-amber-500/70 uppercase tracking-wider mb-1">Outros Custos</p>
+                      <p className="font-black text-amber-700 dark:text-amber-400 text-lg">{formatarMoeda(produtoDetalhesSelecionado.outrosCustos || 0)}</p>
+                    </div>
+                  </div>
+
+                  {/* Tabela de Insumos Premium */}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-[11px] uppercase tracking-wider font-bold">
+                        <tr>
+                          <th className="px-5 py-3">Insumo Utilizado</th>
+                          <th className="px-5 py-3 text-center w-32">Qtd. Necessária</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {produtoDetalhesSelecionado.produtosFabricados.map((pf) => (
+                          <tr key={pf.id} className="text-slate-700 dark:text-slate-300 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-5 py-3 font-medium flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                              {pf.insumo?.nome || `Insumo Desconhecido (ID: ${pf.insumoId})`}
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                              <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                {pf.quantidade}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-end flex-shrink-0">
+              <button onClick={() => setProdutoDetalhesSelecionado(null)} className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all shadow-sm">
+                Fechar Janela
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   )
