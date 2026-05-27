@@ -174,8 +174,29 @@ export async function toggleProdutoStatus(id: number, currentStatus: boolean) {
 
 export async function edicaoExpressaEstoque(id: number, campo: string, valor: number) {
   if (isNaN(valor)) return { error: "Valor inválido" }
+  
+  const produtoAtual = await prisma.product.findUnique({ where: { id } });
+  if (!produtoAtual) return { error: "Produto não encontrado" };
+
   const data: any = {}
   data[campo] = (campo === 'precoVenda' || campo === 'precoCompra') ? Math.round(valor * 100) / 100 : valor
+
+  if (campo === 'precoVenda') {
+    const p = produtoAtual;
+    let unitCusto = 0;
+    if (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda && p.precoVenda > 0) {
+      unitCusto = p.precoVenda / (1 + (p.percentualLucro / 100));
+    } else {
+      unitCusto = (p.quantidadeEstoque && p.quantidadeEstoque > 0) 
+        ? (p.precoCompra || 0) / p.quantidadeEstoque 
+        : (p.precoCompra || 0);
+    }
+
+    const novoPrecoVenda = data[campo];
+    const novoLucro = unitCusto > 0 ? ((novoPrecoVenda - unitCusto) / unitCusto) * 100 : 100;
+    data.percentualLucro = Math.round(novoLucro * 100) / 100;
+  }
+
   await prisma.product.update({
     where: { id },
     data

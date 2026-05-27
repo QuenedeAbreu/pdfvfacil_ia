@@ -198,7 +198,12 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
 
   // Tabela Expressa
   const [termoBusca, setTermoBusca] = useState("")
+  const [paginaEstoque, setPaginaEstoque] = useState(1)
+  const [itensPorPaginaEstoque, setItensPorPaginaEstoque] = useState(10)
+
   const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(termoBusca.toLowerCase()) || p.id.toString() === termoBusca)
+  const totalPaginasEstoque = Math.ceil(produtosFiltrados.length / itensPorPaginaEstoque)
+  const produtosPaginados = produtosFiltrados.slice((paginaEstoque - 1) * itensPorPaginaEstoque, paginaEstoque * itensPorPaginaEstoque)
 
   return (
     <div className="space-y-6">
@@ -265,7 +270,17 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Preço Venda (Editável)</label>
-                <input type="number" step="0.01" required value={pVenda} onChange={e => setPVenda(e.target.value)} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input type="number" step="0.01" required value={pVenda} onChange={e => {
+                  setPVenda(e.target.value);
+                  const v = parseFloat(e.target.value) || 0;
+                  const c = parseFloat(pCusto) || 0;
+                  const q = parseFloat(pQtd) || 1;
+                  const unitCusto = c / q;
+                  if (unitCusto > 0) {
+                    const novoLucro = ((v - unitCusto) / unitCusto) * 100;
+                    setPLucro(novoLucro.toFixed(2));
+                  }
+                }} className="w-full px-3 py-2 font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
               <div className="sm:col-span-2 pt-2 flex justify-end gap-2">
                 {pIdEdicao && (
@@ -371,7 +386,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">📦 Painel de Estoque</h2>
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar por nome ou ID..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input type="text" placeholder="Buscar por nome ou ID..." value={termoBusca} onChange={e => { setTermoBusca(e.target.value); setPaginaEstoque(1); }} className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
         </div>
 
@@ -389,7 +404,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
-              {produtosFiltrados.map(p => (
+              {produtosPaginados.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs">{p.id}</td>
                   <td className="px-4 py-3 font-medium">
@@ -463,13 +478,51 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                   </td>
                 </tr>
               ))}
-              {produtosFiltrados.length === 0 && (
+              {produtosPaginados.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">Nenhum produto encontrado.</td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Controles de Paginação */}
+        <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500 font-medium">Mostrar:</span>
+            <select
+              value={itensPorPaginaEstoque}
+              onChange={e => { setItensPorPaginaEstoque(Number(e.target.value)); setPaginaEstoque(1); }}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-slate-700 dark:text-slate-300"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-slate-500">por página</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              disabled={paginaEstoque === 1}
+              onClick={() => setPaginaEstoque(p => p - 1)}
+              className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 transition-opacity"
+            >
+              Anterior
+            </button>
+            <span className="text-sm text-slate-500 font-medium bg-slate-50 dark:bg-slate-900 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+              Página {paginaEstoque} de {Math.max(1, totalPaginasEstoque)}
+            </span>
+            <button
+              disabled={paginaEstoque >= totalPaginasEstoque}
+              onClick={() => setPaginaEstoque(p => p + 1)}
+              className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 transition-opacity"
+            >
+              Próxima
+            </button>
+          </div>
         </div>
       </div>
 

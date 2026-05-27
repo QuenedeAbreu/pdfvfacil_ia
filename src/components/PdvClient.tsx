@@ -9,9 +9,9 @@ import { PatternFormat } from 'react-number-format'
 import { formatarMoeda } from '@/lib/utils'
 import { useTabStore } from '@/store/useTabStore'
 
-type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number, codNotaFiscal?: string | null }
-type Kit = { id: number, nome: string, precoVenda: number }
-type CarrinhoItem = { id: string, nome: string, preco: number, quantidade: number, isKit: boolean, maxEstoque?: number, descontoItemPercentual: number | string }
+type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number, codNotaFiscal?: string | null, precoCompra: number, percentualLucro?: number }
+type Kit = { id: number, nome: string, precoVenda: number, itens?: { quantidade: number, produto: { precoCompra: number } }[] }
+type CarrinhoItem = { id: string, nome: string, preco: number, quantidade: number, isKit: boolean, maxEstoque?: number, descontoItemPercentual: number | string, precoCompraUnitario: number, percentualLucro: number }
 type OrcamentoBasico = { id: number, cliente: string | null, total: number, dataVenda: Date }
 
 export default function PdvClient({ produtos, kits, orcamentos = [] }: { produtos: Produto[], kits: Kit[], orcamentos?: OrcamentoBasico[] }) {
@@ -46,22 +46,39 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const orcamentoId = searchParams.get('orcamentoId')
 
   const allSelectableItems = [
-    ...produtos.map(p => ({
-      rawId: `p-${p.id}`,
-      type: 'p',
-      id: p.id,
-      nome: p.nome,
-      precoVenda: p.precoVenda,
-      codNotaFiscal: p.codNotaFiscal || ""
-    })),
-    ...kits.map(k => ({
-      rawId: `k-${k.id}`,
-      type: 'k',
-      id: k.id,
-      nome: k.nome,
-      precoVenda: k.precoVenda,
-      codNotaFiscal: ""
-    }))
+    ...produtos.map(p => {
+      let unitCusto = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+        ? p.precoVenda / (1 + (p.percentualLucro / 100))
+        : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0));
+
+      return {
+        rawId: `p-${p.id}`,
+        type: 'p',
+        id: p.id,
+        nome: p.nome,
+        precoVenda: p.precoVenda,
+        codNotaFiscal: p.codNotaFiscal || "",
+        quantidadeEstoque: p.quantidadeEstoque,
+        precoCompraUnitario: unitCusto,
+        percentualLucro: p.percentualLucro || 0
+      };
+    }),
+    ...kits.map(k => {
+      const custoKit = k.itens?.reduce((acc, i) => acc + (i.produto?.precoCompra || 0) * i.quantidade, 0) || 0;
+      let unitCusto = custoKit;
+
+      return {
+        rawId: `k-${k.id}`,
+        type: 'k',
+        id: k.id,
+        nome: k.nome,
+        precoVenda: k.precoVenda,
+        codNotaFiscal: "",
+        quantidadeEstoque: 999,
+        precoCompraUnitario: unitCusto,
+        percentualLucro: 0
+      }
+    })
   ]
 
   const itemsSelectBoxFiltrados = allSelectableItems.filter(item => {
@@ -107,15 +124,24 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     const globalPercent = sumBruto > 0 ? (o.descontoFinal / sumBruto) * 100 : 0;
     setDescontoGlobal(globalPercent > 0 ? globalPercent.toFixed(2) : "");
 
-    const novoCarrinho = o.itens.map(i => ({
-      id: i.itemId.toString(),
-      nome: i.nomeOriginal || i.produto?.nome || `Kit ID ${i.itemId}`,
-      preco: i.precoOriginal,
-      quantidade: i.quantidade,
-      isKit: i.isKit,
-      descontoItemPercentual: i.descontoItemPorcentagem || "",
-      maxEstoque: undefined
-    }));
+    const novoCarrinho = o.itens.map((i: any) => {
+      const dbLucro = i.produto?.percentualLucro || 0;
+      let calcUnitCusto = (dbLucro !== 0 && i.precoOriginal > 0)
+        ? i.precoOriginal / (1 + (dbLucro / 100))
+        : i.precoCompraOriginal || 0;
+
+      return {
+        id: i.itemId.toString(),
+        nome: i.nomeOriginal || i.produto?.nome || `Kit ID ${i.itemId}`,
+        preco: i.precoOriginal,
+        quantidade: i.quantidade,
+        isKit: i.isKit,
+        descontoItemPercentual: i.descontoItemPorcentagem || "",
+        maxEstoque: i.isKit ? undefined : i.produto?.quantidadeEstoque,
+        precoCompraUnitario: calcUnitCusto,
+        percentualLucro: dbLucro
+      };
+    });
     setCarrinho(novoCarrinho);
     showAlert("Orçamento carregado! Você pode alterar os itens e finalizar a Venda.");
   }
@@ -136,7 +162,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
 
   const gerarTextoResumo = (dados: any) => {
     let txt = `*${dados.isOrcamento ? 'ORÇAMENTO' : 'COMPROVANTE DE VENDA'}*\n`;
-    txt += `Orçamento #${dados.vendaId}\n`;
+    txt += `${dados.isOrcamento ? 'Orçamento' : 'Venda'} #${dados.vendaId}\n`;
     if (dados.cliente) txt += `Cliente: ${dados.cliente}\n`;
     txt += `\n*ITENS:*\n`;
     dados.carrinho.forEach((c: any) => {
@@ -201,7 +227,9 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
         quantidade: 1,
         isKit,
         maxEstoque,
-        descontoItemPercentual: ""
+        descontoItemPercentual: "",
+        precoCompraUnitario: itemSelecionadoObj?.precoCompraUnitario || 0,
+        percentualLucro: itemSelecionadoObj?.percentualLucro || 0
       }])
     }
   }
@@ -281,6 +309,12 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const totalBruto = carrinho.reduce((acc, item) => acc + (item.preco * (1 - (Number(item.descontoItemPercentual) || 0) / 100) * item.quantidade), 0)
   const valorDesconto = totalBruto * ((Number(descontoGlobal) || 0) / 100)
   const totalLiquido = Math.max(0, totalBruto - valorDesconto)
+
+  const totalCustoCompra = carrinho.reduce((acc, item) => acc + (item.precoCompraUnitario * item.quantidade), 0)
+  const lucroTotalLiquido = totalLiquido - totalCustoCompra
+  const margemLucroGlobal = totalCustoCompra > 0 ? (lucroTotalLiquido / totalCustoCompra) * 100 : 0
+
+  const temEstoqueInsuficiente = carrinho.some(item => !item.isKit && item.maxEstoque !== undefined && (item.maxEstoque <= 0 || item.quantidade > item.maxEstoque))
 
   const abrirModalConfirmacao = (isOrcamento: boolean) => {
     setModalConfirmacao({ visible: true, isOrcamento });
@@ -406,24 +440,38 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                         {itemsSelectBoxFiltrados.length === 0 ? (
                           <div className="text-center py-4 text-xs text-slate-400">Nenhum item encontrado</div>
                         ) : (
-                          itemsSelectBoxFiltrados.map(item => (
-                            <div
-                              key={item.rawId}
-                              onClick={() => {
-                                setProdutoSelecionado(item.rawId);
-                                setDropdownAberto(false);
-                                setFiltroPesquisa("");
-                              }}
-                              className={`px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 flex justify-between items-center transition-colors ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
-                            >
-                              <span className="truncate">
-                                {item.type === 'p' ? '📦' : '🎁'} [ID {item.id}] {item.nome}
-                              </span>
-                              <span className="text-xs text-slate-400 flex-shrink-0 ml-2">
-                                {formatarMoeda(item.precoVenda)}
-                              </span>
-                            </div>
-                          ))
+                          itemsSelectBoxFiltrados.map(item => {
+                            const isOut = item.type === 'p' && item.quantidadeEstoque <= 0;
+                            return (
+                              <div
+                                key={item.rawId}
+                                onClick={() => {
+                                  if (isOut) {
+                                    showAlert("Este produto está esgotado no estoque!");
+                                    return;
+                                  }
+                                  setProdutoSelecionado(item.rawId);
+                                  setDropdownAberto(false);
+                                  setFiltroPesquisa("");
+                                }}
+                                className={`px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 flex justify-between items-center transition-colors ${isOut ? 'opacity-50 hover:bg-red-50 dark:hover:bg-red-950/20' : ''} ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
+                              >
+                                <span className="truncate flex items-center gap-1.5">
+                                  {item.type === 'p' ? '📦' : '🎁'} [ID {item.id}] {item.nome}
+                                  {item.type === 'p' && (
+                                    item.quantidadeEstoque <= 0 ? (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">ESGOTADO</span>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">(Estoque: {item.quantidadeEstoque})</span>
+                                    )
+                                  )}
+                                </span>
+                                <span className="text-xs text-slate-400 flex-shrink-0 ml-2">
+                                  {formatarMoeda(item.precoVenda)}
+                                </span>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -448,13 +496,33 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 <div key={`${item.id}-${item.isKit}`} className="flex flex-col sm:flex-row gap-3 items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.isKit ? '🎁' : '📦'} {item.nome}</p>
-                    <div className="flex items-center gap-1.5 mt-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
                         {formatarMoeda(item.preco)}
                       </span>
                       <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
                         un.
                       </span>
+                      {(() => {
+                        const lucroEmReais = item.precoCompraUnitario * (item.percentualLucro / 100);
+                        const isNegativo = item.percentualLucro < 0;
+                        return (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ml-2 ${isNegativo ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`} title="Lucro Cadastrado no Banco">
+                            Lucro Prod: {item.percentualLucro > 0 ? '+' : ''}{item.percentualLucro}% ({formatarMoeda(lucroEmReais)})
+                          </span>
+                        );
+                      })()}
+                      {!item.isKit && item.maxEstoque !== undefined && (
+                        item.maxEstoque <= 0 ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                            ⚠️ ESGOTADO
+                          </span>
+                        ) : item.quantidade > item.maxEstoque ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30">
+                            ⚠️ ESTOQUE INSUFICIENTE (Disp: {item.maxEstoque})
+                          </span>
+                        ) : null
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -505,6 +573,16 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 }
               }} className="w-32 px-3 py-2 text-right bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-emerald-600 font-black text-lg outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
+            <div className="flex justify-between items-center text-xs mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
+              <span className="text-slate-500">Custo Total (Produtos):</span>
+              <span className="font-medium text-slate-700 dark:text-slate-300">{formatarMoeda(totalCustoCompra)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-500">Lucro Total (Em Reais):</span>
+              <span className={`font-bold ${lucroTotalLiquido < 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                {formatarMoeda(lucroTotalLiquido)} {margemLucroGlobal !== 0 && `(${margemLucroGlobal > 0 ? '+' : ''}${margemLucroGlobal.toFixed(1)}%)`}
+              </span>
+            </div>
           </div>
 
           <div className="mt-auto pt-6">
@@ -517,6 +595,12 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
               </div>
             </div>
 
+            {temEstoqueInsuficiente && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-xl text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1.5">
+                <span>⚠️ Existem itens sem estoque suficiente no carrinho! Ajuste as quantidades para prosseguir.</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 disabled={loading || carrinho.length === 0}
@@ -527,7 +611,7 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                 Orçamento
               </button>
               <button
-                disabled={loading || carrinho.length === 0}
+                disabled={loading || carrinho.length === 0 || temEstoqueInsuficiente}
                 onClick={() => abrirModalConfirmacao(false)}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/30 transition-all disabled:opacity-50"
               >

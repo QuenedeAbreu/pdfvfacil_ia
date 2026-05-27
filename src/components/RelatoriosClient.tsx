@@ -43,6 +43,7 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
 
   const [vendaSelecionada, setVendaSelecionada] = useState<Venda | null>(null)
   const [vendaParaCancelar, setVendaParaCancelar] = useState<number | null>(null)
+  const [modalResumoOpen, setModalResumoOpen] = useState(false)
 
   const limparFiltros = () => {
     setFiltroTipo("todos")
@@ -75,6 +76,43 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
       setVendaSelecionada(null);
       router.refresh()
     }
+  }
+
+  const gerarTextoResumo = (v: Venda) => {
+    let txt = `*${v.isOrcamento ? 'ORÇAMENTO' : 'COMPROVANTE DE VENDA'}*\n`;
+    txt += `${v.isOrcamento ? 'Orçamento' : 'Venda'} #${v.id}\n`;
+    if (v.cliente) txt += `Cliente: ${v.cliente}\n`;
+    txt += `\n*ITENS:*\n`;
+    
+    let sumBruto = 0;
+    v.itens.forEach(item => {
+      const preco = v.isOrcamento && item.produto ? item.produto.precoVenda : item.precoOriginal;
+      const sub = preco * item.quantidade * (1 - item.descontoItemPorcentagem / 100);
+      sumBruto += sub;
+      const nome = v.isOrcamento && item.produto ? item.produto.nome : (item.nomeOriginal || item.produto?.nome || `[Item Removido]`);
+      txt += `- ${item.quantidade}x ${nome} | ${formatarMoeda(sub)}\n`;
+    });
+    
+    if (v.descontoFinal > 0) txt += `\nDesconto Extra: -${formatarMoeda(v.descontoFinal)}`;
+    
+    const displayTotal = v.isOrcamento ? Math.max(0, sumBruto - v.descontoFinal) : v.total;
+    txt += `\n*TOTAL: ${formatarMoeda(displayTotal)}*\n`;
+    txt += `\nAgradecemos a preferência!`;
+    return txt;
+  }
+
+  const handleCopiarResumo = () => {
+    if (!vendaSelecionada) return;
+    navigator.clipboard.writeText(gerarTextoResumo(vendaSelecionada));
+    showAlert("Resumo copiado para a área de transferência!");
+  }
+
+  const enviarWhatsApp = () => {
+    if (!vendaSelecionada) return;
+    const txt = encodeURIComponent(gerarTextoResumo(vendaSelecionada));
+    const tel = vendaSelecionada.telefone?.replace(/\D/g, '');
+    const url = tel ? `https://wa.me/55${tel}?text=${txt}` : `https://wa.me/?text=${txt}`;
+    window.open(url, '_blank');
   }
 
   const vendasFiltradas = vendas.filter(v => {
@@ -303,6 +341,12 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
                   </button>
                 )}
                 {!vendaSelecionada.cancelada && (
+                  <button onClick={() => setModalResumoOpen(true)} className="flex-1 sm:flex-none justify-center bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5">
+                    <FileText className="w-4 h-4" />
+                    Opções de Envio
+                  </button>
+                )}
+                {!vendaSelecionada.cancelada && (
                   <button onClick={() => handleCancelarVenda(vendaSelecionada.id)} disabled={isCancelling} className="flex-1 sm:flex-none justify-center bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50">
                     <XCircle className="w-4 h-4" />
                     {isCancelling ? 'Cancelando...' : 'Cancelar Venda'}
@@ -334,6 +378,32 @@ export default function RelatoriosClient({ vendas }: { vendas: Venda[] }) {
               </button>
               <button onClick={confirmarCancelamento} disabled={isCancelling} className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold py-2 rounded-lg shadow-md shadow-red-500/20 transition-all disabled:opacity-50">
                 {isCancelling ? 'Aguarde...' : 'Sim, Cancelar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RESUMO E WHATSAPP */}
+      {modalResumoOpen && vendaSelecionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-800">
+            <h3 className="text-xl font-bold text-emerald-600 mb-4 flex items-center gap-2">
+              <CheckCircle className="w-6 h-6" />
+              Opções de Envio
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              Escolha como deseja enviar o resumo desta {vendaSelecionada.isOrcamento ? 'ordem/orçamento' : 'venda'}:
+            </p>
+            <div className="flex flex-col gap-3">
+              <button onClick={enviarWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-colors">
+                Enviar no WhatsApp
+              </button>
+              <button onClick={handleCopiarResumo} className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold py-3 rounded-xl transition-colors">
+                Copiar Resumo (Texto)
+              </button>
+              <button onClick={() => setModalResumoOpen(false)} className="w-full mt-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold py-2 transition-colors">
+                Fechar Janela
               </button>
             </div>
           </div>
