@@ -46,7 +46,7 @@ export default function GlobalDialog() {
             className={`px-4 py-2 rounded-xl font-bold text-white transition-colors flex items-center gap-2 ${
               type === 'alert' 
                 ? 'bg-blue-600 hover:bg-blue-700' 
-                : 'bg-emerald-600 hover:bg-emerald-700'
+                : 'bg-red-600 hover:bg-red-700'
             }`}
           >
             <Check className="w-4 h-4" /> {type === 'alert' ? 'OK' : 'Confirmar'}
