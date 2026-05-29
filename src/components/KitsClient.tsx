@@ -11,6 +11,7 @@ type Produto = {
   id: number;
   nome: string;
   precoVenda: number;
+  quantidadeEstoque: number;
 }
 
 type Kit = {
@@ -36,6 +37,34 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   const [produtoSelecionado, setProdutoSelecionado] = useState("")
   const [produtoQtd, setProdutoQtd] = useState("1")
   
+  const [dropdownAberto, setDropdownAberto] = useState(false)
+  const [filtroPesquisa, setFiltroPesquisa] = useState("")
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
+
+  const itemsSelectBoxFiltrados = produtos.filter(item => {
+    const term = filtroPesquisa.toLowerCase().trim()
+    if (!term) return true
+    return (
+      item.id.toString().includes(term) ||
+      item.nome.toLowerCase().includes(term)
+    )
+  })
+
+  const itemSelecionadoObj = produtos.find(x => x.id.toString() === produtoSelecionado)
+
+  useEffect(() => {
+    setHighlightedIndex(0)
+  }, [filtroPesquisa, dropdownAberto])
+
+  useEffect(() => {
+    if (dropdownAberto) {
+      const activeEl = document.getElementById(`dropdown-item-kit-${highlightedIndex}`)
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [highlightedIndex, dropdownAberto])
+  
   const [descontoPercentual, setDescontoPercentual] = useState("")
   const [precoSugeridoSoma, setPrecoSugeridoSoma] = useState("")
   
@@ -54,13 +83,20 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     setPaginaAtual(1)
   }
 
-  const adicionarProdutoKit = () => {
-    if (!produtoSelecionado || !produtoQtd || parseFloat(produtoQtd) <= 0) return
-    const prod = produtos.find(p => p.id === parseInt(produtoSelecionado))
+  const adicionarProdutoKit = (idDireto?: string | React.MouseEvent) => {
+    const isMouseEvent = idDireto && typeof idDireto !== 'string';
+    const idParaAdicionar = isMouseEvent ? produtoSelecionado : ((idDireto as string) || produtoSelecionado);
+    if (!idParaAdicionar || !produtoQtd || parseFloat(produtoQtd) <= 0) return
+    const prod = produtos.find(p => p.id === parseInt(idParaAdicionar))
     if (!prod) return
     
+    if (prod.quantidadeEstoque <= 0) {
+      showAlert("Este produto está esgotado no estoque!");
+      return;
+    }
+    
     const novaComposicao = [...composicao, {
-      id: produtoSelecionado,
+      id: idParaAdicionar,
       nome: prod.nome,
       quantidade: produtoQtd,
       precoVenda: prod.precoVenda
@@ -111,6 +147,8 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     setPrecoSugeridoSoma("")
     setProdutoSelecionado("")
     setProdutoQtd("1")
+    setFiltroPesquisa("")
+    setDropdownAberto(false)
   }
 
   const handleEditarKit = (kit: Kit) => {
@@ -206,10 +244,10 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   const kitsPaginados = kitsFiltrados.slice(startIndex, startIndex + itensPorPagina)
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="flex flex-col gap-6">
       
       {/* Formulário Novo Kit */}
-      <div className="lg:col-span-1 glass p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+      <div className="w-full glass p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
             <Gift className="w-5 h-5 text-purple-500" /> 
@@ -224,19 +262,113 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
 
             <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-800/30">
               <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Adicionar Produtos ao Kit</span>
-              <div className="flex gap-2 mb-4">
-                <select value={produtoSelecionado} onChange={e=>setProdutoSelecionado(e.target.value)} className="flex-1 min-w-0 px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
-                  <option value="">Selecionar...</option>
-                  {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                </select>
-                <input type="number" step="0.01" value={produtoQtd} onChange={e=>setProdutoQtd(e.target.value)} placeholder="Qtd" className="w-14 flex-shrink-0 px-1 py-2 text-center text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none" />
-                <button onClick={adicionarProdutoKit} className="bg-purple-500 hover:bg-purple-600 text-white px-3 flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-colors shadow-md shadow-purple-500/20">
+              <div className="flex gap-2 mb-4 relative">
+                <div className="flex-1 relative min-w-0 z-20">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownAberto(!dropdownAberto)}
+                    className="w-full text-left px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm flex items-center justify-between min-h-[38px] cursor-pointer"
+                  >
+                    <span className="truncate">
+                      {itemSelecionadoObj
+                        ? `📦 [ID ${itemSelecionadoObj.id}] ${itemSelecionadoObj.nome} - ${formatarMoeda(itemSelecionadoObj.precoVenda)}`
+                        : "Selecionar produto..."}
+                    </span>
+                    <span className="ml-2 text-slate-400 text-xs">▼</span>
+                  </button>
+
+                  {dropdownAberto && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => { setDropdownAberto(false); setFiltroPesquisa(""); }} />
+                      <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 p-2 flex flex-col max-h-[300px] animate-in fade-in zoom-in-95 duration-100">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={filtroPesquisa}
+                          onChange={e => setFiltroPesquisa(e.target.value)}
+                          placeholder="Pesquisar por nome ou ID..."
+                          className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-purple-500 mb-2"
+                          onKeyDown={(e) => {
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setHighlightedIndex(prev => 
+                                itemsSelectBoxFiltrados.length > 0 ? (prev + 1) % itemsSelectBoxFiltrados.length : 0
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setHighlightedIndex(prev => 
+                                itemsSelectBoxFiltrados.length > 0 ? (prev - 1 + itemsSelectBoxFiltrados.length) % itemsSelectBoxFiltrados.length : 0
+                              );
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (itemsSelectBoxFiltrados.length > 0) {
+                                const item = itemsSelectBoxFiltrados[highlightedIndex];
+                                if (item) {
+                                  if (item.quantidadeEstoque <= 0) {
+                                    showAlert("Este produto está esgotado no estoque!");
+                                    return;
+                                  }
+                                  adicionarProdutoKit(item.id.toString());
+                                  setDropdownAberto(false);
+                                  setFiltroPesquisa("");
+                                }
+                              }
+                            } else if (e.key === 'Escape') {
+                              setDropdownAberto(false);
+                              setFiltroPesquisa("");
+                            }
+                          }}
+                        />
+                        <div className="overflow-y-auto flex-1 custom-scrollbar">
+                          {itemsSelectBoxFiltrados.length === 0 ? (
+                            <div className="text-center py-4 text-xs text-slate-400">Nenhum produto encontrado</div>
+                          ) : (
+                            itemsSelectBoxFiltrados.map((item, index) => {
+                              const isHighlighted = highlightedIndex === index;
+                              const isOut = item.quantidadeEstoque <= 0;
+                              return (
+                                <div
+                                  id={`dropdown-item-kit-${index}`}
+                                  key={item.id}
+                                  onClick={() => {
+                                    if (isOut) {
+                                      showAlert("Este produto está esgotado no estoque!");
+                                      return;
+                                    }
+                                    adicionarProdutoKit(item.id.toString());
+                                    setDropdownAberto(false);
+                                    setFiltroPesquisa("");
+                                  }}
+                                  className={`px-3 py-2 text-sm rounded-md cursor-pointer flex justify-between items-center transition-colors ${isOut ? 'opacity-70' : ''} ${produtoSelecionado === item.id.toString() ? 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 font-semibold' : 'text-slate-700 dark:text-slate-300'} ${isHighlighted ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white ring-1 ring-purple-500 font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                >
+                                  <span className="truncate flex items-center gap-1.5">
+                                    📦 [ID {item.id}] {item.nome}
+                                    {isOut ? (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">ESGOTADO</span>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">(Estoque: {item.quantidadeEstoque})</span>
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-slate-400 flex-shrink-0 ml-2">
+                                    {formatarMoeda(item.precoVenda)}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input type="number" step="0.01" value={produtoQtd} onChange={e=>setProdutoQtd(e.target.value)} placeholder="Qtd" className="w-14 flex-shrink-0 px-1 py-2 text-center text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none relative z-10" />
+                <button onClick={adicionarProdutoKit} className="bg-purple-500 hover:bg-purple-600 text-white px-3 flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-colors shadow-md shadow-purple-500/20 relative z-10">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
 
               {composicao.length > 0 && (
-                <div className="max-h-32 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                <div className="max-h-[300px] overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
                   <table className="w-full text-xs text-left">
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {composicao.map((item, idx) => (
@@ -287,7 +419,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
       </div>
 
       {/* Lista de Kits */}
-      <div className="lg:col-span-2 glass p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <div className="w-full glass p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
             📋 Seus Kits Cadastrados

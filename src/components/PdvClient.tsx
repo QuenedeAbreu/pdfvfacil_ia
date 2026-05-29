@@ -440,18 +440,9 @@ export default function PdvClient({
   const valorDesconto = totalBruto * ((Number(descontoGlobal) || 0) / 100)
   const totalLiquido = Math.max(0, totalBruto - valorDesconto)
 
-  const totalCustoCompra = carrinho.reduce((acc, item) => {
-    const precoEfetivo = item.preco * (1 - (Number(item.descontoItemPercentual) || 0) / 100)
-    const lucroRealUnitario = item.percentualLucro > 0
-      ? precoEfetivo * (item.percentualLucro / 100)
-      : precoEfetivo - item.precoCompraUnitario
-    const custoUnitario = precoEfetivo - lucroRealUnitario
-    return acc + (custoUnitario * item.quantidade)
-  }, 0)
+  const totalCustoCompra = carrinho.reduce((acc, item) => acc + (item.precoCompraUnitario * item.quantidade), 0)
   const lucroTotalLiquido = totalLiquido - totalCustoCompra
-  const margemLucroGlobal = totalLiquido > 0
-    ? (lucroTotalLiquido / totalLiquido) * 100
-    : 0
+  const margemLucroGlobal = totalCustoCompra > 0 ? (lucroTotalLiquido / totalCustoCompra) * 100 : 0
 
   const temEstoqueInsuficiente = carrinho.some(item => !item.isKit && item.maxEstoque !== undefined && (item.maxEstoque <= 0 || item.quantidade > item.maxEstoque))
 
@@ -543,17 +534,16 @@ export default function PdvClient({
               </button>
             </div>
           )}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 mb-6 flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 mb-6 flex flex-col md:flex-row gap-4 items-end">
+            <div className="w-full md:w-1/4">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Bipar ID Rápido</label>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="text" value={buscandoID} onChange={e => setBuscandoID(e.target.value)} onKeyDown={handleBuscarID} placeholder="Ex: 1 ou Código de Barras + Enter" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
+                <input type="text" value={buscandoID} onChange={e => setBuscandoID(e.target.value)} onKeyDown={handleBuscarID} placeholder="Cód + Enter" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
               </div>
             </div>
-            <div className="flex items-center text-slate-400 font-bold px-2">OU</div>
-            <div className="flex-2 w-full flex gap-2 relative">
-              <div className="flex-1 relative">
+            <div className="w-full md:flex-1 flex gap-2 relative">
+              <div className="flex-1 relative min-w-0">
                 <button
                   type="button"
                   onClick={() => setDropdownAberto(!dropdownAberto)}
@@ -632,15 +622,16 @@ export default function PdvClient({
                                   setDropdownAberto(false);
                                   setFiltroPesquisa("");
                                 }}
-                                className={`px-3 py-2 text-sm rounded-md cursor-pointer flex justify-between items-center transition-colors ${isOut ? 'opacity-50 hover:bg-red-50 dark:hover:bg-red-950/20' : ''} ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'} ${isHighlighted ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white ring-1 ring-emerald-500 font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                className={`px-3 py-2 text-sm rounded-md cursor-pointer flex justify-between items-center transition-colors gap-3 ${isOut ? 'opacity-50 hover:bg-red-50 dark:hover:bg-red-950/20' : ''} ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'} ${isHighlighted ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white ring-1 ring-emerald-500 font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                               >
-                                <span className="truncate flex items-center gap-1.5">
-                                  {item.type === 'p' ? '📦' : '🎁'} [ID {item.id}] {item.nome}
+                                <span className="flex-1 flex items-center gap-1.5 leading-snug">
+                                  <span className="flex-shrink-0">{item.type === 'p' ? '📦' : '🎁'} [ID {item.id}]</span> 
+                                  <span className="font-medium whitespace-normal">{item.nome}</span>
                                   {item.type === 'p' && (
                                     item.quantidadeEstoque <= 0 ? (
                                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">ESGOTADO</span>
                                     ) : (
-                                      <span className="text-[10px] text-slate-400">(Estoque: {item.quantidadeEstoque})</span>
+                                      <span className="text-[10px] text-slate-400 whitespace-nowrap">(Estoque: {item.quantidadeEstoque})</span>
                                     )
                                   )}
                                 </span>
@@ -682,17 +673,11 @@ export default function PdvClient({
                         un.
                       </span>
                       {(() => {
-                        const precoEfetivo = item.preco * (1 - (Number(item.descontoItemPercentual) || 0) / 100);
-                        const lucroRealUnitario = item.percentualLucro > 0
-                          ? precoEfetivo * (item.percentualLucro / 100)
-                          : precoEfetivo - item.precoCompraUnitario;
-                        const margemLucroReal = item.percentualLucro > 0
-                          ? item.percentualLucro
-                          : (precoEfetivo > 0 ? (lucroRealUnitario / precoEfetivo) * 100 : 0);
-                        const isNegativo = lucroRealUnitario < 0;
+                        const lucroEmReais = item.precoCompraUnitario * (item.percentualLucro / 100);
+                        const isNegativo = item.percentualLucro < 0;
                         return (
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ml-2 ${isNegativo ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`} title="Lucro Real unitário deste item no carrinho">
-                            Lucro Prod: {lucroRealUnitario > 0 ? '+' : ''}{Number(margemLucroReal).toFixed(1)}% ({formatarMoeda(lucroRealUnitario)})
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ml-2 ${isNegativo ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`} title="Lucro Cadastrado no Banco">
+                            Lucro Prod: {item.percentualLucro > 0 ? '+' : ''}{item.percentualLucro}% ({formatarMoeda(lucroEmReais)})
                           </span>
                         );
                       })()}
