@@ -3,18 +3,42 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { finalizarVenda, buscarOrcamentoPorId } from '@/actions/sale'
-import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2 } from 'lucide-react'
+import { Search, Plus, Minus, X, Check, FileText, ShoppingBag, Loader2, Settings } from 'lucide-react'
 import { useDialogStore } from '@/store/useDialogStore'
 import { PatternFormat } from 'react-number-format'
 import { formatarMoeda } from '@/lib/utils'
 import { useTabStore } from '@/store/useTabStore'
 
 type Produto = { id: number, nome: string, precoVenda: number, quantidadeEstoque: number, codNotaFiscal?: string | null, precoCompra: number, percentualLucro?: number }
-type Kit = { id: number, nome: string, precoVenda: number, itens?: { quantidade: number, produto: { precoCompra: number } }[] }
+type Kit = { id: number, nome: string, precoVenda: number, itens?: { quantidade: number, produto: Produto }[] }
 type CarrinhoItem = { id: string, nome: string, preco: number, quantidade: number, isKit: boolean, maxEstoque?: number, descontoItemPercentual: number | string, precoCompraUnitario: number, percentualLucro: number }
 type OrcamentoBasico = { id: number, cliente: string | null, total: number, dataVenda: Date }
+type FormaPagamentoObj = { id: number; nome: string; cor: string; ativo: boolean }
 
-export default function PdvClient({ produtos, kits, orcamentos = [] }: { produtos: Produto[], kits: Kit[], orcamentos?: OrcamentoBasico[] }) {
+const PRESET_COLORS = [
+  "#10B981", // Green
+  "#06B6D4", // Teal
+  "#3B82F6", // Blue
+  "#6366F1", // Indigo
+  "#8B5CF6", // Purple
+  "#EC4899", // Pink
+  "#EF4444", // Red
+  "#F97316", // Orange
+  "#F59E0B", // Yellow
+  "#64748B"  // Gray
+]
+
+export default function PdvClient({
+  produtos,
+  kits,
+  orcamentos = [],
+  formasPagamento = []
+}: {
+  produtos: Produto[]
+  kits: Kit[]
+  orcamentos?: OrcamentoBasico[]
+  formasPagamento?: FormaPagamentoObj[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [carrinho, setCarrinho] = useState<CarrinhoItem[]>([])
@@ -25,8 +49,9 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const [buscandoID, setBuscandoID] = useState("")
   const [dropdownAberto, setDropdownAberto] = useState(false)
   const [filtroPesquisa, setFiltroPesquisa] = useState("")
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [loading, setLoading] = useState(false)
-  const { orcamentoIdParaCarregar, setOrcamentoIdParaCarregar } = useTabStore()
+  const { orcamentoIdParaCarregar, setOrcamentoIdParaCarregar, openTab } = useTabStore()
   const { showAlert } = useDialogStore()
   const [vendaIdExistente, setVendaIdExistente] = useState<number | undefined>(undefined)
   const [modalResumo, setModalResumo] = useState<{ visible: boolean, dados: any } | null>(null)
@@ -35,6 +60,59 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const [termoBuscaOrcamento, setTermoBuscaOrcamento] = useState("")
   const [paginaOrcamento, setPaginaOrcamento] = useState(1)
   const [itensPorPagina, setItensPorPagina] = useState(5)
+  const [dividirPagamento, setDividirPagamento] = useState(false)
+  const [formaPagamento1, setFormaPagamento1] = useState("Dinheiro")
+  const [valorPagamento1, setValorPagamento1] = useState<number>(0)
+  const [formaPagamento2, setFormaPagamento2] = useState("Cartão de Crédito")
+  const [valorPagamento2, setValorPagamento2] = useState<number>(0)
+
+  const getMetodoCor = (nome: string) => {
+    const found = formasPagamento.find(f => f.nome.toLowerCase() === nome.toLowerCase())
+    if (found) return found.cor
+    const defaultColors: Record<string, string> = {
+      "dinheiro": "#10B981",
+      "pix": "#06B6D4",
+      "cartão de crédito": "#3B82F6",
+      "cartão de débito": "#6366F1",
+      "outro": "#64748B"
+    }
+    return defaultColors[nome.toLowerCase()] || "#64748B"
+  }
+
+  // Configuração de Formas de Pagamento removida para tela dedicada
+
+  const handleDividirPagamentoToggle = (checked: boolean) => {
+    setDividirPagamento(checked)
+    if (checked) {
+      const half = parseFloat((totalLiquido / 2).toFixed(2))
+      setValorPagamento1(half)
+      setValorPagamento2(parseFloat((totalLiquido - half).toFixed(2)))
+
+      const defaultFP1 = formasPagamento[0]?.nome || "Dinheiro"
+      const defaultFP2 = formasPagamento[1]?.nome || "Cartão de Crédito"
+      setFormaPagamento1(defaultFP1)
+      setFormaPagamento2(defaultFP2)
+    } else {
+      setValorPagamento1(totalLiquido)
+      setValorPagamento2(0)
+    }
+  }
+
+  const handleValorPagamento1Change = (val: number) => {
+    let v1 = val
+    if (v1 < 0) v1 = 0
+    if (v1 > totalLiquido) v1 = totalLiquido
+    setValorPagamento1(v1)
+    setValorPagamento2(parseFloat((totalLiquido - v1).toFixed(2)))
+  }
+
+  const handleValorPagamento2Change = (val: number) => {
+    let v2 = val
+    if (v2 < 0) v2 = 0
+    if (v2 > totalLiquido) v2 = totalLiquido
+    setValorPagamento2(v2)
+    setValorPagamento1(parseFloat((totalLiquido - v2).toFixed(2)))
+  }
 
   const orcamentosFiltrados = orcamentos.filter(o =>
     o.id.toString().includes(termoBuscaOrcamento) ||
@@ -64,7 +142,14 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
       };
     }),
     ...kits.map(k => {
-      const custoKit = k.itens?.reduce((acc, i) => acc + (i.produto?.precoCompra || 0) * i.quantidade, 0) || 0;
+      const custoKit = k.itens?.reduce((acc, i) => {
+        const p = i.produto;
+        if (!p) return acc;
+        const pUnitCusto = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+          ? p.precoVenda / (1 + (p.percentualLucro / 100))
+          : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0));
+        return acc + (pUnitCusto * i.quantidade);
+      }, 0) || 0;
       let unitCusto = custoKit;
 
       return {
@@ -92,6 +177,19 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   })
 
   const itemSelecionadoObj = allSelectableItems.find(x => x.rawId === produtoSelecionado)
+
+  useEffect(() => {
+    setHighlightedIndex(0)
+  }, [filtroPesquisa, dropdownAberto])
+
+  useEffect(() => {
+    if (dropdownAberto) {
+      const activeEl = document.getElementById(`dropdown-item-${highlightedIndex}`)
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [highlightedIndex, dropdownAberto])
 
   useEffect(() => {
     if (orcamentoId) {
@@ -126,9 +224,11 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
 
     const novoCarrinho = o.itens.map((i: any) => {
       const dbLucro = i.produto?.percentualLucro || 0;
-      let calcUnitCusto = (dbLucro !== 0 && i.precoOriginal > 0)
-        ? i.precoOriginal / (1 + (dbLucro / 100))
-        : i.precoCompraOriginal || 0;
+      let calcUnitCusto = i.precoCompraOriginal !== null && i.precoCompraOriginal !== undefined
+        ? i.precoCompraOriginal
+        : ((dbLucro !== 0 && i.precoOriginal > 0)
+          ? i.precoOriginal / (1 + (dbLucro / 100))
+          : 0);
 
       return {
         id: i.itemId.toString(),
@@ -171,6 +271,15 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     });
     if (dados.descontoFinal > 0) txt += `\nDesconto Extra: -${formatarMoeda(dados.descontoFinal)}`;
     txt += `\n*TOTAL: ${formatarMoeda(dados.total)}*\n`;
+    if (dados.formaPagamento1) {
+      if (dados.formaPagamento2) {
+        txt += `\n*Pagamento:*`;
+        txt += `\n- ${dados.formaPagamento1}: ${formatarMoeda(dados.valorPagamento1)}`;
+        txt += `\n- ${dados.formaPagamento2}: ${formatarMoeda(dados.valorPagamento2)}\n`;
+      } else {
+        txt += `\n*Forma de Pagamento:* ${dados.formaPagamento1}\n`;
+      }
+    }
     txt += `\nAgradecemos a preferência!`;
     return txt;
   }
@@ -220,6 +329,27 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
       if (maxEstoque !== undefined && maxEstoque < 1) {
         return showAlert("Produto esgotado!")
       }
+      let costUnit = 0
+      let pctLucro = 0
+      if (!isKit) {
+        const p = itemBase as Produto
+        costUnit = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+          ? p.precoVenda / (1 + (p.percentualLucro / 100))
+          : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0))
+        pctLucro = p.percentualLucro || 0
+      } else {
+        const k = itemBase as Kit
+        costUnit = k.itens?.reduce((acc, i) => {
+          const p = i.produto;
+          if (!p) return acc;
+          const pUnitCusto = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+            ? p.precoVenda / (1 + (p.percentualLucro / 100))
+            : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0));
+          return acc + (pUnitCusto * i.quantidade);
+        }, 0) || 0
+        pctLucro = 0
+      }
+
       setCarrinho([...carrinho, {
         id: idStr,
         nome: itemBase.nome,
@@ -228,8 +358,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
         isKit,
         maxEstoque,
         descontoItemPercentual: "",
-        precoCompraUnitario: itemSelecionadoObj?.precoCompraUnitario || 0,
-        percentualLucro: itemSelecionadoObj?.percentualLucro || 0
+        precoCompraUnitario: costUnit,
+        percentualLucro: pctLucro
       }])
     }
   }
@@ -310,13 +440,27 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
   const valorDesconto = totalBruto * ((Number(descontoGlobal) || 0) / 100)
   const totalLiquido = Math.max(0, totalBruto - valorDesconto)
 
-  const totalCustoCompra = carrinho.reduce((acc, item) => acc + (item.precoCompraUnitario * item.quantidade), 0)
+  const totalCustoCompra = carrinho.reduce((acc, item) => {
+    const precoEfetivo = item.preco * (1 - (Number(item.descontoItemPercentual) || 0) / 100)
+    const lucroRealUnitario = item.percentualLucro > 0
+      ? precoEfetivo * (item.percentualLucro / 100)
+      : precoEfetivo - item.precoCompraUnitario
+    const custoUnitario = precoEfetivo - lucroRealUnitario
+    return acc + (custoUnitario * item.quantidade)
+  }, 0)
   const lucroTotalLiquido = totalLiquido - totalCustoCompra
-  const margemLucroGlobal = totalCustoCompra > 0 ? (lucroTotalLiquido / totalCustoCompra) * 100 : 0
+  const margemLucroGlobal = totalLiquido > 0
+    ? (lucroTotalLiquido / totalLiquido) * 100
+    : 0
 
   const temEstoqueInsuficiente = carrinho.some(item => !item.isKit && item.maxEstoque !== undefined && (item.maxEstoque <= 0 || item.quantidade > item.maxEstoque))
 
   const abrirModalConfirmacao = (isOrcamento: boolean) => {
+    setDividirPagamento(false)
+    setFormaPagamento1(formasPagamento[0]?.nome || "Dinheiro")
+    setValorPagamento1(totalLiquido)
+    setFormaPagamento2(formasPagamento[1]?.nome || "Cartão de Crédito")
+    setValorPagamento2(0)
     setModalConfirmacao({ visible: true, isOrcamento });
   }
 
@@ -331,7 +475,15 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
     setLoading(true)
     const data = {
       vendaIdExistente,
-      cliente, telefone, descontoFinal: valorDesconto, total: totalLiquido, isOrcamento,
+      cliente,
+      telefone,
+      descontoFinal: valorDesconto,
+      total: totalLiquido,
+      isOrcamento,
+      formaPagamento1: formaPagamento1,
+      valorPagamento1: dividirPagamento ? valorPagamento1 : totalLiquido,
+      formaPagamento2: dividirPagamento ? formaPagamento2 : null,
+      valorPagamento2: dividirPagamento ? valorPagamento2 : null,
       carrinho: carrinho.map(c => ({
         id: c.id, nome: c.nome, isKit: c.isKit, quantidade: c.quantidade, preco: c.preco, descontoItemPercentual: Number(c.descontoItemPercentual) || 0
       }))
@@ -349,7 +501,11 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
           telefone,
           total: totalLiquido,
           carrinho: [...carrinho],
-          descontoFinal: valorDesconto
+          descontoFinal: valorDesconto,
+          formaPagamento1: formaPagamento1,
+          valorPagamento1: dividirPagamento ? valorPagamento1 : totalLiquido,
+          formaPagamento2: dividirPagamento ? formaPagamento2 : null,
+          valorPagamento2: dividirPagamento ? valorPagamento2 : null
         }
       });
       setCarrinho([])
@@ -423,12 +579,31 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                         placeholder="Pesquisar por nome, ID ou código..."
                         className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-emerald-500 mb-2"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setHighlightedIndex(prev =>
+                              itemsSelectBoxFiltrados.length > 0 ? (prev + 1) % itemsSelectBoxFiltrados.length : 0
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setHighlightedIndex(prev =>
+                              itemsSelectBoxFiltrados.length > 0 ? (prev - 1 + itemsSelectBoxFiltrados.length) % itemsSelectBoxFiltrados.length : 0
+                            );
+                          } else if (e.key === 'Enter') {
                             e.preventDefault();
                             if (itemsSelectBoxFiltrados.length > 0) {
-                              setProdutoSelecionado(itemsSelectBoxFiltrados[0].rawId);
-                              setDropdownAberto(false);
-                              setFiltroPesquisa("");
+                              const item = itemsSelectBoxFiltrados[highlightedIndex];
+                              if (item) {
+                                const isOut = item.type === 'p' && item.quantidadeEstoque <= 0;
+                                if (isOut) {
+                                  showAlert("Este produto está esgotado no estoque!");
+                                  return;
+                                }
+                                adicionarProduto(item.rawId);
+                                setProdutoSelecionado("");
+                                setDropdownAberto(false);
+                                setFiltroPesquisa("");
+                              }
                             }
                           } else if (e.key === 'Escape') {
                             setDropdownAberto(false);
@@ -440,21 +615,24 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                         {itemsSelectBoxFiltrados.length === 0 ? (
                           <div className="text-center py-4 text-xs text-slate-400">Nenhum item encontrado</div>
                         ) : (
-                          itemsSelectBoxFiltrados.map(item => {
+                          itemsSelectBoxFiltrados.map((item, index) => {
                             const isOut = item.type === 'p' && item.quantidadeEstoque <= 0;
+                            const isHighlighted = highlightedIndex === index;
                             return (
                               <div
+                                id={`dropdown-item-${index}`}
                                 key={item.rawId}
                                 onClick={() => {
                                   if (isOut) {
                                     showAlert("Este produto está esgotado no estoque!");
                                     return;
                                   }
-                                  setProdutoSelecionado(item.rawId);
+                                  adicionarProduto(item.rawId);
+                                  setProdutoSelecionado("");
                                   setDropdownAberto(false);
                                   setFiltroPesquisa("");
                                 }}
-                                className={`px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 flex justify-between items-center transition-colors ${isOut ? 'opacity-50 hover:bg-red-50 dark:hover:bg-red-950/20' : ''} ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
+                                className={`px-3 py-2 text-sm rounded-md cursor-pointer flex justify-between items-center transition-colors ${isOut ? 'opacity-50 hover:bg-red-50 dark:hover:bg-red-950/20' : ''} ${produtoSelecionado === item.rawId ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300'} ${isHighlighted ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white ring-1 ring-emerald-500 font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                               >
                                 <span className="truncate flex items-center gap-1.5">
                                   {item.type === 'p' ? '📦' : '🎁'} [ID {item.id}] {item.nome}
@@ -504,11 +682,17 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                         un.
                       </span>
                       {(() => {
-                        const lucroEmReais = item.precoCompraUnitario * (item.percentualLucro / 100);
-                        const isNegativo = item.percentualLucro < 0;
+                        const precoEfetivo = item.preco * (1 - (Number(item.descontoItemPercentual) || 0) / 100);
+                        const lucroRealUnitario = item.percentualLucro > 0
+                          ? precoEfetivo * (item.percentualLucro / 100)
+                          : precoEfetivo - item.precoCompraUnitario;
+                        const margemLucroReal = item.percentualLucro > 0
+                          ? item.percentualLucro
+                          : (precoEfetivo > 0 ? (lucroRealUnitario / precoEfetivo) * 100 : 0);
+                        const isNegativo = lucroRealUnitario < 0;
                         return (
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ml-2 ${isNegativo ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`} title="Lucro Cadastrado no Banco">
-                            Lucro Prod: {item.percentualLucro > 0 ? '+' : ''}{item.percentualLucro}% ({formatarMoeda(lucroEmReais)})
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ml-2 ${isNegativo ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`} title="Lucro Real unitário deste item no carrinho">
+                            Lucro Prod: {lucroRealUnitario > 0 ? '+' : ''}{Number(margemLucroReal).toFixed(1)}% ({formatarMoeda(lucroRealUnitario)})
                           </span>
                         );
                       })()}
@@ -689,6 +873,144 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
                   placeholder={modalConfirmacao.isOrcamento ? "(99) 99999-9999 (Obrigatório)" : "(99) 99999-9999 (Opcional)"}
                 />
               </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-4 mt-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Forma de Pagamento
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalConfirmacao(null)
+                      openTab('pagamentos')
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-bold text-blue-500 hover:text-blue-600 transition-colors uppercase tracking-wider cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5" /> Configurar
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between mb-4 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Dividir pagamento (2 formas)</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={dividirPagamento}
+                      onChange={(e) => handleDividirPagamentoToggle(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {!dividirPagamento ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Forma</label>
+                    <select
+                      value={formaPagamento1}
+                      onChange={e => setFormaPagamento1(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold shadow-sm"
+                      style={{
+                        color: getMetodoCor(formaPagamento1)
+                      }}
+                    >
+                      {formasPagamento.map(f => (
+                        <option key={f.id} value={f.nome} style={{ color: f.cor, fontWeight: 'bold' }}>{f.nome}</option>
+                      ))}
+                      {formasPagamento.length === 0 && (
+                        <>
+                          <option value="Dinheiro" style={{ color: "#10B981", fontWeight: 'bold' }}>Dinheiro</option>
+                          <option value="PIX" style={{ color: "#06B6D4", fontWeight: 'bold' }}>PIX</option>
+                          <option value="Cartão de Crédito" style={{ color: "#3B82F6", fontWeight: 'bold' }}>Cartão de Crédito</option>
+                          <option value="Cartão de Débito" style={{ color: "#6366F1", fontWeight: 'bold' }}>Cartão de Débito</option>
+                          <option value="Outro" style={{ color: "#64748B", fontWeight: 'bold' }}>Outro</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Forma 1</label>
+                        <select
+                          value={formaPagamento1}
+                          onChange={e => setFormaPagamento1(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold shadow-sm"
+                          style={{
+                            color: getMetodoCor(formaPagamento1)
+                          }}
+                        >
+                          {formasPagamento.map(f => (
+                            <option key={f.id} value={f.nome} style={{ color: f.cor, fontWeight: 'bold' }}>{f.nome}</option>
+                          ))}
+                          {formasPagamento.length === 0 && (
+                            <>
+                              <option value="Dinheiro" style={{ color: "#10B981", fontWeight: 'bold' }}>Dinheiro</option>
+                              <option value="PIX" style={{ color: "#06B6D4", fontWeight: 'bold' }}>PIX</option>
+                              <option value="Cartão de Crédito" style={{ color: "#3B82F6", fontWeight: 'bold' }}>Cartão de Crédito</option>
+                              <option value="Cartão de Débito" style={{ color: "#6366F1", fontWeight: 'bold' }}>Cartão de Débito</option>
+                              <option value="Outro" style={{ color: "#64748B", fontWeight: 'bold' }}>Outro</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Valor 1</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={totalLiquido}
+                          value={valorPagamento1}
+                          onChange={e => handleValorPagamento1Change(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Forma 2</label>
+                        <select
+                          value={formaPagamento2}
+                          onChange={e => setFormaPagamento2(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold shadow-sm"
+                          style={{
+                            color: getMetodoCor(formaPagamento2)
+                          }}
+                        >
+                          {formasPagamento.map(f => (
+                            <option key={f.id} value={f.nome} style={{ color: f.cor, fontWeight: 'bold' }}>{f.nome}</option>
+                          ))}
+                          {formasPagamento.length === 0 && (
+                            <>
+                              <option value="Cartão de Crédito" style={{ color: "#3B82F6", fontWeight: 'bold' }}>Cartão de Crédito</option>
+                              <option value="Dinheiro" style={{ color: "#10B981", fontWeight: 'bold' }}>Dinheiro</option>
+                              <option value="Cartão de Débito" style={{ color: "#6366F1", fontWeight: 'bold' }}>Cartão de Débito</option>
+                              <option value="PIX" style={{ color: "#06B6D4", fontWeight: 'bold' }}>PIX</option>
+                              <option value="Outro" style={{ color: "#64748B", fontWeight: 'bold' }}>Outro</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Valor 2</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={totalLiquido}
+                          value={valorPagamento2}
+                          onChange={e => handleValorPagamento2Change(parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3">
@@ -806,6 +1128,8 @@ export default function PdvClient({ produtos, kits, orcamentos = [] }: { produto
           </div>
         </div>
       )}
+
+      {/* MODAL CONFIGURAÇÃO DE FORMAS DE PAGAMENTO REMOVIDA PARA TELA DEDICADA */}
 
     </div>
   )

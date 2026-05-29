@@ -202,7 +202,79 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
   const [paginaEstoque, setPaginaEstoque] = useState(1)
   const [itensPorPaginaEstoque, setItensPorPaginaEstoque] = useState(10)
 
-  const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(termoBusca.toLowerCase()) || p.id.toString() === termoBusca)
+  const [filtroCategoria, setFiltroCategoria] = useState("todos")
+  const [filtroStatus, setFiltroStatus] = useState("todos")
+  const [filtroTipo, setFiltroTipo] = useState("todos")
+  const [filtroEstoque, setFiltroEstoque] = useState("todos")
+
+  const handleFiltroCategoriaChange = (val: string) => {
+    setFiltroCategoria(val)
+    setPaginaEstoque(1)
+  }
+  const handleFiltroStatusChange = (val: string) => {
+    setFiltroStatus(val)
+    setPaginaEstoque(1)
+  }
+  const handleFiltroTipoChange = (val: string) => {
+    setFiltroTipo(val)
+    setPaginaEstoque(1)
+  }
+  const handleFiltroEstoqueChange = (val: string) => {
+    setFiltroEstoque(val)
+    setPaginaEstoque(1)
+  }
+
+  const temFiltrosAtivos = termoBusca !== "" || filtroCategoria !== "todos" || filtroStatus !== "todos" || filtroTipo !== "todos" || filtroEstoque !== "todos"
+
+  const limparFiltros = () => {
+    setTermoBusca("")
+    setFiltroCategoria("todos")
+    setFiltroStatus("todos")
+    setFiltroTipo("todos")
+    setFiltroEstoque("todos")
+    setPaginaEstoque(1)
+  }
+
+  const produtosFiltrados = produtos.filter(p => {
+    // 1. Termo de Busca
+    const matchesSearch = p.nome.toLowerCase().includes(termoBusca.toLowerCase()) || p.id.toString() === termoBusca
+    if (!matchesSearch) return false
+
+    // 2. Categoria
+    if (filtroCategoria !== "todos") {
+      const pCatNormalized = normalizeCategoria(p.categoria, "outros")
+      if (filtroCategoria === "outros") {
+        if (pCatNormalized === "cosmeticos" || pCatNormalized === "papelaria" || pCatNormalized === "insumos" || pCatNormalized === "servicos") {
+          return false
+        }
+      } else {
+        if (pCatNormalized !== filtroCategoria) return false
+      }
+    }
+
+    // 3. Status
+    if (filtroStatus !== "todos") {
+      const wantActive = filtroStatus === "ativo"
+      if (p.ativo !== wantActive) return false
+    }
+
+    // 4. Tipo de Item
+    if (filtroTipo !== "todos") {
+      if (filtroTipo === "servico" && !p.isServico) return false
+      if (filtroTipo === "personalizado" && (!p.produtosFabricados || p.produtosFabricados.length === 0)) return false
+      if (filtroTipo === "revenda" && (p.isServico || (p.produtosFabricados && p.produtosFabricados.length > 0))) return false
+    }
+
+    // 5. Estoque
+    if (filtroEstoque !== "todos") {
+      if (p.isServico) return false
+      if (filtroEstoque === "zerado" && p.quantidadeEstoque > 0) return false
+      if (filtroEstoque === "baixo" && (p.quantidadeEstoque <= 0 || p.quantidadeEstoque >= 5)) return false
+      if (filtroEstoque === "disponivel" && p.quantidadeEstoque <= 0) return false
+    }
+
+    return true
+  })
   const totalPaginasEstoque = Math.ceil(produtosFiltrados.length / itensPorPaginaEstoque)
   const produtosPaginados = produtosFiltrados.slice((paginaEstoque - 1) * itensPorPaginaEstoque, paginaEstoque * itensPorPaginaEstoque)
 
@@ -387,7 +459,79 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">📦 Painel de Estoque</h2>
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar por nome ou ID..." value={termoBusca} onChange={e => { setTermoBusca(e.target.value); setPaginaEstoque(1); }} className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+            <input type="text" placeholder="Buscar por nome ou ID..." value={termoBusca} onChange={e => { setTermoBusca(e.target.value); setPaginaEstoque(1); }} className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+            {termoBusca && (
+              <button onClick={() => { setTermoBusca(""); setPaginaEstoque(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filtros adicionais de estoque */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6 p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Categoria</label>
+            <select
+              value={filtroCategoria}
+              onChange={e => handleFiltroCategoriaChange(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 dark:text-slate-300"
+            >
+              <option value="todos">Todas as categorias</option>
+              <option value="cosmeticos">Cosméticos</option>
+              <option value="papelaria">Papelaria</option>
+              <option value="insumos">Insumos</option>
+              <option value="servicos">Serviços</option>
+              <option value="outros">Outras / Sem categoria</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+            <select
+              value={filtroStatus}
+              onChange={e => handleFiltroStatusChange(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 dark:text-slate-300"
+            >
+              <option value="todos">Todos os status</option>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Item</label>
+            <select
+              value={filtroTipo}
+              onChange={e => handleFiltroTipoChange(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 dark:text-slate-300"
+            >
+              <option value="todos">Todos os tipos</option>
+              <option value="revenda">Revenda / Insumo</option>
+              <option value="personalizado">Personalizado</option>
+              <option value="servico">Serviço</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Disponibilidade</label>
+            <select
+              value={filtroEstoque}
+              onChange={e => handleFiltroEstoqueChange(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 dark:text-slate-300"
+            >
+              <option value="todos">Todos os níveis</option>
+              <option value="disponivel">Disponível (Estoque &gt; 0)</option>
+              <option value="baixo">Estoque Baixo (&lt; 5)</option>
+              <option value="zerado">Esgotado (Estoque = 0)</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={limparFiltros}
+              disabled={!temFiltrosAtivos}
+              className="w-full px-3 py-2 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-h-[34px] cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              Limpar Filtros
+            </button>
           </div>
         </div>
 
@@ -443,43 +587,43 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         <Eye className="w-4 h-4" />
                       </button>
                       <button onClick={() => {
-                      if (p.produtosFabricados && p.produtosFabricados.length > 0) {
-                        // Edição Personalizado
-                        setActiveTab('personalizado')
-                        setFIdEdicao(p.id.toString())
-                        setFNome(p.nome)
-                        setFCategoria(normalizeCategoria(p.categoria, "papelaria"))
-                        setFQtdEstoque(p.quantidadeEstoque.toString())
-                        setFLucro(p.percentualLucro.toString())
+                        if (p.produtosFabricados && p.produtosFabricados.length > 0) {
+                          // Edição Personalizado
+                          setActiveTab('personalizado')
+                          setFIdEdicao(p.id.toString())
+                          setFNome(p.nome)
+                          setFCategoria(normalizeCategoria(p.categoria, "papelaria"))
+                          setFQtdEstoque(p.quantidadeEstoque.toString())
+                          setFLucro(p.percentualLucro.toString())
 
-                        const comp = p.produtosFabricados.map(pf => ({
-                          id: pf.insumoId.toString(),
-                          nome: pf.insumo.nome,
-                          quantidade: pf.quantidade.toString(),
-                          preco: pf.insumo.precoVenda || 0
-                        }))
-                        setComposicao(comp)
-                        setFTempo(p.tempoProducao ? p.tempoProducao.toString() : "")
-                        setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toString() : "")
-                        setFOutros(p.outrosCustos ? p.outrosCustos.toString() : "")
-                      } else {
-                        // Edição simples
-                        setActiveTab('simples')
-                        setPIdEdicao(p.id.toString())
-                        setPNome(p.nome)
-                        setPCategoria(normalizeCategoria(p.categoria, "cosmeticos"))
-                        setPNf(p.codNotaFiscal || "")
-                        setPMedida(p.tipoQuantidade || "un")
-                        setPQtd(p.quantidadeEstoque.toString())
-                        setPCusto(p.precoCompra ? Number(p.precoCompra).toFixed(2) : "")
-                        setPLucro(p.percentualLucro.toString())
-                        setPVenda(p.precoVenda ? Number(p.precoVenda).toFixed(2) : "")
-                        setPIsServico(p.isServico || false)
-                      }
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors" title="Editar">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
+                          const comp = p.produtosFabricados.map(pf => ({
+                            id: pf.insumoId.toString(),
+                            nome: pf.insumo.nome,
+                            quantidade: pf.quantidade.toString(),
+                            preco: pf.insumo.precoVenda || 0
+                          }))
+                          setComposicao(comp)
+                          setFTempo(p.tempoProducao ? p.tempoProducao.toString() : "")
+                          setFCustoHora(p.custoHoraProducao ? p.custoHoraProducao.toString() : "")
+                          setFOutros(p.outrosCustos ? p.outrosCustos.toString() : "")
+                        } else {
+                          // Edição simples
+                          setActiveTab('simples')
+                          setPIdEdicao(p.id.toString())
+                          setPNome(p.nome)
+                          setPCategoria(normalizeCategoria(p.categoria, "cosmeticos"))
+                          setPNf(p.codNotaFiscal || "")
+                          setPMedida(p.tipoQuantidade || "un")
+                          setPQtd(p.quantidadeEstoque.toString())
+                          setPCusto(p.precoCompra ? Number(p.precoCompra).toFixed(2) : "")
+                          setPLucro(p.percentualLucro.toString())
+                          setPVenda(p.precoVenda ? Number(p.precoVenda).toFixed(2) : "")
+                          setPIsServico(p.isServico || false)
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }} className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition-colors" title="Editar">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -536,7 +680,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
       {produtoDetalhesSelecionado && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200/50 dark:border-slate-800/50 overflow-hidden flex flex-col max-h-[90vh]">
-            
+
             {/* Header Clean */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-4">
@@ -562,7 +706,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
             {/* Conteúdo Rolável Premium */}
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                
+
                 {/* Card Info Básica */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-shadow">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
@@ -625,7 +769,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                         <DollarSign className="w-6 h-6" />
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <p className="text-[11px] font-bold text-slate-400 uppercase mb-1">Custo Total / Lote</p>
@@ -657,7 +801,7 @@ export default function EstoqueClient({ produtos, insumos }: { produtos: Produto
                       <p className="text-xs text-slate-500">Custos adicionais e insumos utilizados na fabricação</p>
                     </div>
                   </div>
-                  
+
                   {/* Custos Adicionais Grid */}
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="bg-amber-50/50 dark:bg-amber-950/10 p-3 rounded-xl border border-amber-100/50 dark:border-amber-900/20 text-center">

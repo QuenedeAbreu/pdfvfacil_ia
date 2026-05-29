@@ -69,15 +69,19 @@ model ManufacturedProductComposition {
 }
 
 model Sale {
-  id            Int        @id @default(autoincrement())
-  dataVenda     DateTime   @default(now())
-  cliente       String?
-  telefone      String?
-  descontoFinal Float      @default(0)
-  total         Float
-  isOrcamento   Boolean    @default(false)
-  cancelada     Boolean    @default(false)
-  itens         SaleItem[]
+  id              Int        @id @default(autoincrement())
+  dataVenda       DateTime   @default(now())
+  cliente         String?
+  telefone        String?
+  descontoFinal   Float      @default(0)
+  total           Float
+  isOrcamento     Boolean    @default(false)
+  cancelada       Boolean    @default(false)
+  formaPagamento1 String?
+  valorPagamento1 Float?
+  formaPagamento2 String?
+  valorPagamento2 Float?
+  itens           SaleItem[]
 }
 
 model SaleItem {
@@ -95,4 +99,11 @@ model SaleItem {
 
   @@index([itemId], map: "SaleItem_itemId_fkey")
   @@index([vendaId], map: "SaleItem_vendaId_fkey")
+}
+
+model PaymentMethod {
+  id    Int     @id @default(autoincrement())
+  nome  String  @unique
+  cor   String  @default("#10B981")
+  ativo Boolean @default(true)
 }

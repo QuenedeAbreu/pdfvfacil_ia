@@ -1,6 +1,6 @@
 "use client"
 
-import { ShoppingCart, Package, Gift, BarChart2, Users } from 'lucide-react'
+import { ShoppingCart, Package, Gift, BarChart2, Users, CreditCard } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useTabStore, TabId } from '@/store/useTabStore'
@@ -21,6 +21,7 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsO
     { id: 'kits' as TabId, label: 'Montar Kits', icon: Gift, adminOnly: true },
     { id: 'relatorios' as TabId, label: 'Relatórios', icon: BarChart2, adminOnly: true },
     { id: 'usuarios' as TabId, label: 'Usuários', icon: Users, adminOnly: true },
+    { id: 'pagamentos' as TabId, label: 'F. Pagamento', icon: CreditCard, adminOnly: true },
   ]
 
   if (!mounted) return null

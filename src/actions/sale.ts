@@ -23,9 +23,25 @@ export async function finalizarVenda(data: {
   descontoFinal: number,
   total: number,
   isOrcamento: boolean,
+  formaPagamento1?: string | null,
+  valorPagamento1?: number | null,
+  formaPagamento2?: string | null,
+  valorPagamento2?: number | null,
   carrinho: { id: string, nome: string, isKit: boolean, quantidade: number, preco: number, descontoItemPercentual: number }[]
 }) {
-  const { vendaIdExistente, cliente, telefone, descontoFinal, total, isOrcamento, carrinho } = data
+  const {
+    vendaIdExistente,
+    cliente,
+    telefone,
+    descontoFinal,
+    total,
+    isOrcamento,
+    formaPagamento1,
+    valorPagamento1,
+    formaPagamento2,
+    valorPagamento2,
+    carrinho
+  } = data
 
   if (carrinho.length === 0) {
     return { error: "Adicione produtos ao carrinho!" }
@@ -65,12 +81,32 @@ export async function finalizarVenda(data: {
 
     await prisma.sale.update({
       where: { id: vendaIdExistente },
-      data: { cliente, telefone, descontoFinal, total, isOrcamento }
+      data: {
+        cliente,
+        telefone,
+        descontoFinal,
+        total,
+        isOrcamento,
+        formaPagamento1,
+        valorPagamento1,
+        formaPagamento2,
+        valorPagamento2
+      }
     });
   } else {
     // Criar Nova Venda
     const venda = await prisma.sale.create({
-      data: { cliente, telefone, descontoFinal, total, isOrcamento }
+      data: {
+        cliente,
+        telefone,
+        descontoFinal,
+        total,
+        isOrcamento,
+        formaPagamento1,
+        valorPagamento1,
+        formaPagamento2,
+        valorPagamento2
+      }
     });
     vendaId = venda.id;
   }
@@ -80,11 +116,22 @@ export async function finalizarVenda(data: {
     let custo = 0;
     if (!item.isKit) {
       const p = await prisma.product.findUnique({ where: { id: parseInt(item.id) } });
-      if (p) custo = p.precoCompra || 0;
+      if (p) {
+        custo = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+          ? p.precoVenda / (1 + (p.percentualLucro / 100))
+          : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0));
+      }
     } else {
       const k = await prisma.kit.findUnique({ where: { id: parseInt(item.id) }, include: { itens: { include: { produto: true } } } });
       if (k) {
-        custo = k.itens.reduce((acc, ki) => acc + ((ki.produto?.precoCompra || 0) * ki.quantidade), 0);
+        custo = k.itens.reduce((acc, ki) => {
+          const p = ki.produto;
+          if (!p) return acc;
+          const pUnitCusto = (p.percentualLucro && p.percentualLucro !== 0 && p.precoVenda > 0)
+            ? p.precoVenda / (1 + (p.percentualLucro / 100))
+            : (p.quantidadeEstoque > 0 ? (p.precoCompra || 0) / p.quantidadeEstoque : (p.precoCompra || 0));
+          return acc + (pUnitCusto * ki.quantidade);
+        }, 0);
       }
     }
 

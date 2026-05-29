@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type TabId = 'pdv' | 'estoque' | 'kits' | 'relatorios' | 'usuarios'
+export type TabId = 'pdv' | 'estoque' | 'kits' | 'relatorios' | 'usuarios' | 'pagamentos'
 
 export type TabInfo = {
   id: TabId
@@ -30,7 +30,8 @@ export const useTabStore = create<TabState>((set) => ({
       estoque: 'Estoque',
       kits: 'Montar Kits',
       relatorios: 'Relatórios',
-      usuarios: 'Usuários'
+      usuarios: 'Usuários',
+      pagamentos: 'F. Pagamento'
     }
     const alreadyOpen = state.openTabs.some(t => t.id === id)
     const newTabs = alreadyOpen

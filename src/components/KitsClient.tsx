@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { salvarKit, excluirKit } from '@/actions/kit'
 import { useDialogStore } from '@/store/useDialogStore'
-import { Gift, Plus, Trash, Search, Pencil, Eye, X } from 'lucide-react'
+import { Gift, Plus, Trash, Search, Pencil, Eye, X, DollarSign } from 'lucide-react'
 import { formatarMoeda } from '@/lib/utils'
 
 type Produto = {
@@ -42,6 +42,17 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   const [loading, setLoading] = useState(false)
   const { showAlert, showConfirm } = useDialogStore()
   const [termoBusca, setTermoBusca] = useState("")
+  const [filtroPreco, setFiltroPreco] = useState("todos")
+  const [filtroQtdItens, setFiltroQtdItens] = useState("todos")
+
+  const temFiltrosKitsAtivos = termoBusca !== "" || filtroPreco !== "todos" || filtroQtdItens !== "todos"
+
+  const limparFiltrosKits = () => {
+    setTermoBusca("")
+    setFiltroPreco("todos")
+    setFiltroQtdItens("todos")
+    setPaginaAtual(1)
+  }
 
   const adicionarProdutoKit = () => {
     if (!produtoSelecionado || !produtoQtd || parseFloat(produtoQtd) <= 0) return
@@ -158,7 +169,29 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
     setLoading(false)
   }
 
-  const kitsFiltrados = kits.filter(k => k.nome.toLowerCase().includes(termoBusca.toLowerCase()) || k.id.toString() === termoBusca)
+  const kitsFiltrados = kits.filter(k => {
+    // 1. Termo de Busca
+    const matchesSearch = k.nome.toLowerCase().includes(termoBusca.toLowerCase()) || k.id.toString() === termoBusca
+    if (!matchesSearch) return false
+
+    // 2. Faixa de Preço
+    if (filtroPreco !== "todos") {
+      const price = Number(k.precoVenda)
+      if (filtroPreco === "ate50" && price > 50) return false
+      if (filtroPreco === "50a100" && (price <= 50 || price > 100)) return false
+      if (filtroPreco === "mais100" && price <= 100) return false
+    }
+
+    // 3. Qtd. de Itens
+    if (filtroQtdItens !== "todos") {
+      const totalItens = k.itens?.reduce((acc, item) => acc + Number(item.quantidade), 0) || 0
+      if (filtroQtdItens === "1a2" && (totalItens < 1 || totalItens > 2)) return false
+      if (filtroQtdItens === "3a5" && (totalItens < 3 || totalItens > 5)) return false
+      if (filtroQtdItens === "mais5" && totalItens <= 5) return false
+    }
+
+    return true
+  })
 
   const [paginaAtual, setPaginaAtual] = useState(1)
   const itensPorPagina = 10
@@ -166,7 +199,7 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
   
   useEffect(() => {
     setPaginaAtual(1)
-  }, [termoBusca])
+  }, [termoBusca, filtroPreco, filtroQtdItens])
 
   const totalPaginas = Math.max(1, Math.ceil(kitsFiltrados.length / itensPorPagina))
   const startIndex = (paginaAtual - 1) * itensPorPagina
@@ -261,7 +294,64 @@ export default function KitsClient({ kits, produtos }: { kits: Kit[], produtos: 
           </h2>
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Buscar kit..." value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" />
+            <input type="text" placeholder="Buscar kit..." value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" />
+            {termoBusca && (
+              <button onClick={() => setTermoBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filtros adicionais de Kits */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/50 text-sm">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <DollarSign className="w-3.5 h-3.5" /> Faixa de Preço
+            </label>
+            <select
+              value={filtroPreco}
+              onChange={e => { setFiltroPreco(e.target.value); setPaginaAtual(1); }}
+              className={`w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all duration-150 cursor-pointer ${
+                filtroPreco !== "todos"
+                  ? "border-purple-500 dark:border-purple-400 bg-purple-50/30 dark:bg-purple-950/20 text-purple-800 dark:text-purple-400 font-bold"
+                  : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              }`}
+            >
+              <option value="todos">Todos os preços</option>
+              <option value="ate50">Até R$ 50,00</option>
+              <option value="50a100">R$ 50,00 a R$ 100,00</option>
+              <option value="mais100">Acima de R$ 100,00</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <Gift className="w-3.5 h-3.5" /> Qtd. de Itens
+            </label>
+            <select
+              value={filtroQtdItens}
+              onChange={e => { setFiltroQtdItens(e.target.value); setPaginaAtual(1); }}
+              className={`w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all duration-150 cursor-pointer ${
+                filtroQtdItens !== "todos"
+                  ? "border-purple-500 dark:border-purple-400 bg-purple-50/30 dark:bg-purple-950/20 text-purple-800 dark:text-purple-400 font-bold"
+                  : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              }`}
+            >
+              <option value="todos">Qualquer quantidade</option>
+              <option value="1a2">1 a 2 itens</option>
+              <option value="3a5">3 a 5 itens</option>
+              <option value="mais5">Mais de 5 itens</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={limparFiltrosKits}
+              disabled={!temFiltrosKitsAtivos}
+              className="w-full px-3 py-2 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-h-[34px] cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              Limpar Filtros
+            </button>
           </div>
         </div>
 

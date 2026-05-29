@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect } from 'react'
-import { ShoppingCart, Package, Gift, BarChart2, Users, X } from 'lucide-react'
+import { ShoppingCart, Package, Gift, BarChart2, Users, X, CreditCard } from 'lucide-react'
 import { useTabStore, TabId } from '@/store/useTabStore'
 import PdvClient from './PdvClient'
 import EstoqueClient from './EstoqueClient'
 import KitsClient from './KitsClient'
 import RelatoriosClient from './RelatoriosClient'
 import UsuariosClient from './UsuariosClient'
+import PagamentosClient from './PagamentosClient'
 
 type DashboardTabManagerProps = {
   produtos: any[]
@@ -15,6 +16,7 @@ type DashboardTabManagerProps = {
   kits: any[]
   vendas: any[]
   usuarios: any[]
+  formasPagamento?: any[]
 }
 
 export default function DashboardTabManager({
@@ -22,7 +24,8 @@ export default function DashboardTabManager({
   insumos,
   kits,
   vendas,
-  usuarios
+  usuarios,
+  formasPagamento = []
 }: DashboardTabManagerProps) {
   const { openTabs, activeTabId, setActiveTabId, closeTab, openTab } = useTabStore()
 
@@ -53,7 +56,8 @@ export default function DashboardTabManager({
     estoque: Package,
     kits: Gift,
     relatorios: BarChart2,
-    usuarios: Users
+    usuarios: Users,
+    pagamentos: CreditCard
   }
 
   const getTabColorClasses = (id: TabId, isActive: boolean) => {
@@ -66,7 +70,8 @@ export default function DashboardTabManager({
       estoque: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shadow-sm shadow-emerald-500/5",
       kits: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200 dark:border-purple-800 shadow-sm shadow-purple-500/5",
       relatorios: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200 dark:border-blue-800 shadow-sm shadow-blue-500/5",
-      usuarios: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 shadow-sm shadow-indigo-500/5"
+      usuarios: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 shadow-sm shadow-indigo-500/5",
+      pagamentos: "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400 border-orange-200 dark:border-orange-800 shadow-sm shadow-orange-500/5"
     }
 
     return activeColorClasses[id]
@@ -114,7 +119,7 @@ export default function DashboardTabManager({
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">PDV / Caixa</h2>
               <p className="text-slate-500 text-sm">Registre vendas, orçamentos e movimente o estoque</p>
             </div>
-            <PdvClient produtos={produtosAtivos} kits={kits} orcamentos={orcamentosPendentes} />
+            <PdvClient produtos={produtosAtivos} kits={kits} orcamentos={orcamentosPendentes} formasPagamento={formasPagamento} />
           </div>
         )}
 
@@ -144,7 +149,7 @@ export default function DashboardTabManager({
               <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Relatórios & Auditoria</h1>
               <p className="text-slate-500 dark:text-slate-400">Verifique o histórico de vendas, orçamentos e filtre por clientes.</p>
             </header>
-            <RelatoriosClient vendas={vendas} />
+            <RelatoriosClient vendas={vendas} formasPagamento={formasPagamento} />
           </div>
         )}
 
@@ -155,6 +160,16 @@ export default function DashboardTabManager({
               <p className="text-slate-500 dark:text-slate-400">Gerencie os acessos ao sistema e cadastre novos funcionários.</p>
             </header>
             <UsuariosClient usuarios={usuarios} />
+          </div>
+        )}
+
+        {openTabs.some(t => t.id === 'pagamentos') && (
+          <div className={activeTabId === 'pagamentos' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <header className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Formas de Pagamento</h1>
+              <p className="text-slate-500 dark:text-slate-400">Gerencie os métodos de pagamentos aceitos e suas cores indicativas.</p>
+            </header>
+            <PagamentosClient formasPagamento={formasPagamento} />
           </div>
         )}
       </div>
